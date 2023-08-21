@@ -17,6 +17,8 @@
 
    * ODL Name: Give a preferred name for your ODL that will help you to identify the labs in the listed ODLs. **For example: While naming the On Demand Lab, use the following pattern (Lab_Name + Venue Location + Date). This way you can quickly identify the ODLs at ease and will reduce confusion.**
 
+      ![](./images/cge04.png)
+
 ### C. Naming Conventions for the Course
 
    * Course Name: Course is basically combination of multiple learning components such as a labs, Knowledge Assessments, Videos, and Documents. So give the name that which is easy to identify.
@@ -28,16 +30,6 @@
 
       ![](./images/cg-03.png)
    
-
-## 2. Naming Conventions for the ODL
-
-   * ODL Name: Give a preferred name for your ODL that will help you to identify the labs in the listed ODLs. **For example: While naming the On Demand Lab, use the following pattern (Lab_Name + Venue Location + Date). This way you can quickly identify the ODLs at ease and will reduce confusion.**
-
-## 3. Naming Conventions for the Course
-   
-   * Course Name: Course is basically combination of multiple learning components such as a labs, Knowledge Assessments, Videos, Documents. So give the name that which is easy to identify.
-
-
 ## 2. CloudLabs Parameter
    CloudLabs parameters can be used while creation of the cloudlabs template, which will helps us to fetch the values from the cloud.
    
