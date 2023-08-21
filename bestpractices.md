@@ -147,11 +147,11 @@ In CloudLabs the supported file format is JSON(Java Script Object Notation), bel
 
             "CheckAcknowledgement": {
             "value": "TRUE"
-        }
+                
+                  }
+            }
+      }
 
-    }
-
-}
 
 For a detailed explanation on adding an AWS Template follow this link **[Adding An AWS Template](https://dev-cl-docs.azurewebsites.net/LabDeveloper/AddingAWSTemplate)**
 
