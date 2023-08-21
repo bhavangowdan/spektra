@@ -1,9 +1,5 @@
 # Best Practices for Azure Templates
 
-## 1. Naming Conventions for the Templates
-   While adding the template name we need to ensure that we are following the best practice like which Course/lab and other parmeters which is easy to identify the template.
-
-
 ## 1. Naming Conventions for the CloudLabs
 
 ### A. Naming Conventions for the Templates
