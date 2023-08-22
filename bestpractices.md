@@ -32,33 +32,33 @@
 below are some of the cloudlabs parameter that can be used.
 
 
-| **Parameter** | **Remarks** |
-| ------------- | ----------- |
-| GEN-PASSWORD  | Generates a random password of 12 characters.|
-| GEN-UNIQUE    | Generates a GUID of 18 characters starting with 'cs'. |
-| GEN-UNIQUE-[Length] | Generates a GUID of [Length] characters starting with 'cs'. |
-| GEN-UNIQUE-NUM-[Limit] | Generates a random number with upper limit [Limit]. |
-| GEN-SSH-PUB-KEY | Generates SSH Public Key. |
-| GEN-GUID | Generates a GUID. |
-| GET-ENV-[Length] | Gets Environment variable. |
-| CONFIG_STORAGE_ACCOUNT_NAME | Gets Azure Functions storage account name. |
-| GET-SERVICEPRINCIPAL-NAME | Gets SP display name. |
-| GET-SERVICEPRINCIPAL-SECRET | Gets SP secret key. |
-| GET-SERVICEPRINCIPAL-APPLICATION-ID | Gets SP Application Id. |
-| GET-SERVICEPRINCIPAL-OBJECT-ID | Gets SP Application Object Id.|
-| GET-SERVICEPRINCIPAL-SPOBJECT-ID | Gets SP Object Id.|
-| GET-AZUSER-UPN | Gets Azure AD user email. |
-| GET-AZUSER-PASSWORD | Gets Azure AD user password. |
-| GET-PARAMETER-FILE-BASEURI | Gets Parameter file base URI.
-| GET-TEMPLATE-FILE-BASEURI | Gets Template file base URI. |
-| GET-AZUSER-OBJECTID | Gets Azure AD user object Id. |
-| GET-DEPLOYMENT-ID | Gets CloudLabs deployment Id.
- | GET-TENANT-FQDN | Gets Azure AD domain. |
-| GET-LAUNCH-TYPE | Cloud labs deployment type used to tags|
-| GET-TEMPLATE-ID | Cloud labs deployment related template Id |
-| GET-TENANT-ID | Cloud labs deployment related Tenant Id |
-| GET-SERVICEPRINCIPAL-APPLICATION-ID | Gets the AWS Access Key for accessing the AWS Console through CLI (Command Line Interface) |
-| GET-SERVICEPRINCIPAL-SECRET | Gets the AWS Secret Key for accessing the AWS Console through CLI (Command Line Interface) |
+| **Parameter** | **Remarks** | **Cloud** |
+| ------------- | ----------- | --------- |
+| GEN-PASSWORD  | Generates a random password of 12 characters.| Azure and AWS |
+| GEN-UNIQUE    | Generates a GUID of 18 characters starting with 'cs'. | Azure and AWS |
+| GEN-UNIQUE-[Length] | Generates a GUID of [Length] characters starting with 'cs'. | Azure and AWS |
+| GEN-UNIQUE-NUM-[Limit] | Generates a random number with upper limit [Limit]. | Azure and AWS |
+| GEN-SSH-PUB-KEY | Generates SSH Public Key. | Azure and AWS |
+| GEN-GUID | Generates a GUID. | Azure and AWS |
+| GET-ENV-[Length] | Gets Environment variable. |Azure |
+| CONFIG_STORAGE_ACCOUNT_NAME | Gets Azure Functions storage account name. | Azure |
+| GET-SERVICEPRINCIPAL-NAME | Gets SP display name. | Azure |
+| GET-SERVICEPRINCIPAL-SECRET | Gets SP secret key. | Azure |
+| GET-SERVICEPRINCIPAL-APPLICATION-ID | Gets SP Application Id. | Azure |
+| GET-SERVICEPRINCIPAL-OBJECT-ID | Gets SP Application Object Id.| Azure |
+| GET-SERVICEPRINCIPAL-SPOBJECT-ID | Gets SP Object Id.| Azure |
+| GET-AZUSER-UPN | Gets Azure AD user email. | Azure |
+| GET-AZUSER-PASSWORD | Gets Azure AD user password. | Azure |
+| GET-PARAMETER-FILE-BASEURI | Gets Parameter file base URI. | Azure and AWS |
+| GET-TEMPLATE-FILE-BASEURI | Gets Template file base URI. | Azure and AWS |
+| GET-AZUSER-OBJECTID | Gets Azure AD user object Id. | Azure |
+| GET-DEPLOYMENT-ID | Gets CloudLabs deployment Id. | Azure and AWS |
+| GET-TENANT-FQDN | Gets Azure AD domain. | Azure |
+| GET-LAUNCH-TYPE | Cloud labs deployment type used to tags| Azure and AWS |
+| GET-TEMPLATE-ID | Cloud labs deployment related template Id | Azure and AWS |
+| GET-TENANT-ID | Cloud labs deployment related Tenant Id | Azure and AWS |
+| GET-SERVICEPRINCIPAL-APPLICATION-ID | Gets the AWS Access Key for accessing the AWS Console through CLI (Command Line Interface) | AWS |
+| GET-SERVICEPRINCIPAL-SECRET | Gets the AWS Secret Key for accessing the AWS Console through CLI (Command Line Interface) | AWS |
 
 ![](./images/bst2.png)
 
