@@ -219,7 +219,7 @@ For a detailed explanation on Course set-up follow this link: **[Creating CloudL
 
 ## 8. VM CONFIGURATION – ONLY APPLICABLE FOR AZURE:
 
-Under **Add VM Configuration**, add following values:
+This feature allows you to configure your host virtual machine and complete the setup for RDP over HTTPS access. Once your lab is ready, the environment you receive will include a VM on the left side of the browser and the Lab Guide on the right.<br><br>Under **Add VM Configuration**, add following values:
 
 1. **Name**: In this column, you must enter the exact name of your VM that you supplied in your ARM Template.
 
