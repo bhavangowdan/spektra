@@ -11,9 +11,7 @@
     "userName": "[concat('odluser',parameters('DeploymentID'))]"
 
   },
-    "resources": [
-
-  ],
+    "resources": [],
   "outputs": {
     "UserName": {
       "type": "String",
