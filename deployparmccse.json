@@ -1,0 +1,21 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "DID": {
+      "value": "GET-DEPLOYMENT-ID"
+    },
+    "trainerUserName": {
+      "value": "trainer"
+    },
+    "trainerUserPassword": {
+      "value": "Password.!!1"
+    },
+    "disksize": {
+      "value": "1024"
+    },
+    "imgid": {
+      "value": "/subscriptions/de4763c3-f8e1-4954-a53a-bdfadaf9a5dc/resourceGroups/cloudlabs-mgmg-rg/providers/Microsoft.Compute/galleries/check_point_certification_labs_gallery/images/ccser81.20-MatthewFresh/versions/Latest"
+    }
+  }
+}
