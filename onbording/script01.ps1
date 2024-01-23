@@ -49,22 +49,26 @@ InstallAzPowerShellModule
 
 
 
-$AutoLogonRegPath = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
-Set-ItemProperty -Path $AutoLogonRegPath -Name "AutoAdminLogon" -Value "1" -type String 
-Set-ItemProperty -Path $AutoLogonRegPath -Name "DefaultUsername" -Value "$($env:ComputerName)\$adminUsername" -type String  
-Set-ItemProperty -Path $AutoLogonRegPath -Name "DefaultPassword" -Value "$adminPassword" -type String
-Set-ItemProperty -Path $AutoLogonRegPath -Name "AutoLogonCount" -Value "1" -type DWord
+. C:\LabFiles\AzureCreds.ps1
 
-reg add "HKLM\SOFTWARE\Policies\Google\Chrome" /v PasswordManagerEnable /t REG_DWORD /d 0
-#scheduled task
-$Trigger= New-ScheduledTaskTrigger -AtLogOn
-$User= "$($env:ComputerName)\$adminUsername" 
-$Action= New-ScheduledTaskAction -Execute "C:\Windows\System32\WindowsPowerShell\v1.0\Powershell.exe" -Argument "-executionPolicy Unrestricted -File $FileDir\logontask.ps1"
-Register-ScheduledTask -TaskName "startextension" -Trigger $Trigger  -User $User -Action $Action -RunLevel Highest -Force
+$userName = $AzureUserName
+$password = $AzurePassword
+$deploymentID = $DeploymentID
+
+$securePassword = $password | ConvertTo-SecureString -AsPlainText -Force
+$cred = new-object -typename System.Management.Automation.PSCredential -argumentlist $userName, $SecurePassword
+
+Connect-AzAccount -Credential $cred | Out-Null
 
 
-cd HKLM:\
-New-Item –Path "HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Network\" –Name NewNetworkWindowOff
+$rgName = "entp-02-" + $deploymentID
+$vmName = "labvm-" + $deploymentID
+
+Get-AzRemoteDesktopFile -ResourceGroupName "$rgName" -Name "$vmName" -LocalPath "C:\Users\Udacity-Student\Desktop\labvm.rdp"
+
+sleep 10
+
+Unregister-ScheduledTask -TaskName "startextension" -Confirm:$false
 
 
 Restart-Computer
