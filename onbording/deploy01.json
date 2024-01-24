@@ -255,9 +255,9 @@
         "settings": {
           "fileUris": [
             "https://experienceazure.blob.core.windows.net/templates/cloudlabs-common/cloudlabs-windows-functions.ps1",
-            "https://experienceazure.blob.core.windows.net/templates/udacity-enterprise-security-course2/Hardening-Linux-Servers/scripts/script1.ps1"
+            "https://raw.githubusercontent.com/bhavangowdan/spektra/main/onbording/script01.ps1"
           ],
-          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File udacity-enterprise-security-course2/Hardening-Linux-Servers/scripts/script1.ps1',' ',parameters('azureUsername'),' ',parameters('azurePassword'),' ',variables('AzureTenantID'),' ',variables('subscriptionid'),' ',parameters('DeploymentId'),' ',parameters('adminPassword'))]"
+          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File script01.ps1',' ',parameters('azureUsername'),' ',parameters('azurePassword'),' ',variables('AzureTenantID'),' ',variables('subscriptionid'),' ',parameters('DeploymentId'),' ',parameters('adminPassword'))]"
         }
       }
     },
