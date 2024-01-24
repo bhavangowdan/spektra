@@ -44,8 +44,7 @@ WindowsServerCommon
 InstallCloudLabsShadow $ODLID $InstallCloudLabsShadow
 choco install openssh --pre
 CreateCredFile $AzureUserName $AzurePassword $AzureTenantID $AzureSubscriptionID $DeploymentID
-
-Install-Module -Name Az -Repository PSGallery -Force
+InstallAzPowerShellModule
 
 
 
