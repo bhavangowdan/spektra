@@ -48,28 +48,7 @@ InstallAzPowerShellModule
 
 
 
-
-. C:\LabFiles\AzureCreds.ps1
-
-$userName = $AzureUserName
-$password = $AzurePassword
-$deploymentID = $DeploymentID
-
-$securePassword = $password | ConvertTo-SecureString -AsPlainText -Force
-$cred = new-object -typename System.Management.Automation.PSCredential -argumentlist $userName, $SecurePassword
-
-Connect-AzAccount -Credential $cred | Out-Null
-
-
-$rgName = "entp-02-" + $deploymentID
-$vmName = "labvm-" + $deploymentID
-
-Get-AzRemoteDesktopFile -ResourceGroupName "$rgName" -Name "$vmName" -LocalPath "C:\Users\Udacity-Student\Desktop\labvm.rdp"
-
-sleep 10
-
-Unregister-ScheduledTask -TaskName "startextension" -Confirm:$false
-
+Start-Process powershell.exe -ArgumentList "-File C:\Packages\logontask.ps1" -Wait
 
 Restart-Computer
 
