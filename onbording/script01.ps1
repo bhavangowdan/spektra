@@ -46,6 +46,10 @@ choco install openssh --pre
 CreateCredFile $AzureUserName $AzurePassword $AzureTenantID $AzureSubscriptionID $DeploymentID
 InstallAzPowerShellModule
 
+[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force
+Install-Module -Name Microsoft.Identity.Client -Force
+
 
 
 Start-Process powershell.exe -ArgumentList "-File C:\Packages\logontask.ps1" -Wait
