@@ -46,6 +46,8 @@ choco install openssh --pre
 CreateCredFile $AzureUserName $AzurePassword $AzureTenantID $AzureSubscriptionID $DeploymentID
 InstallAzPowerShellModule
 
+Update-Module -Name Az -Force
+
 
 
 Start-Process powershell.exe -ArgumentList "-File C:\Packages\logontask.ps1" -Wait
