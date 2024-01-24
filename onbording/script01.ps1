@@ -30,7 +30,7 @@ net user $adminUsername $adminPassword
 
 $FileDir ="C:\Packages"
 $WebClient = New-Object System.Net.WebClient
-$WebClient.DownloadFile("https://experienceazure.blob.core.windows.net/templates/udacity-security/scripts/logontask.ps1","C:\Packages\logontask.ps1")
+$WebClient.DownloadFile("https://raw.githubusercontent.com/bhavangowdan/spektra/main/onbording/logontask.ps1","C:\Packages\logontask.ps1")
 
 
 #Import Common Functions
