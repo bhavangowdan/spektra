@@ -20,7 +20,11 @@ Connect-AzAccount -Credential $cred | Out-Null
 $rgName = "entp-02-" + $deploymentID
 $vmName = "labvm-" + $deploymentID
 
+New-Item -Path "C:\Users\Udacity-Student\Desktop\" -Name "test.txt" -ItemType Directory
+
 Get-AzRemoteDesktopFile -ResourceGroupName "$rgName" -Name "$vmName" -LocalPath "C:\Users\Udacity-Student\Desktop\labvm.rdp"
+
+Remove-Item -Path C:\Users\Udacity-Student\Desktop\test.txt -Force
 
 sleep 10
 
