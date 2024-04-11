@@ -13,7 +13,7 @@
   },
     "resources": [],
   "outputs": {
-    "UserName": {
+    "UserNamee": {
       "type": "String",
       "value": "[variables('userName')]"
     }
