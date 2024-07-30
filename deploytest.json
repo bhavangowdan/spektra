@@ -1,0 +1,137 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "DeploymentID": {
+            "type": "string"
+        }
+    },
+    "variables": {
+        "userName": "[concat('odluser',parameters('DeploymentID'))]",
+        "publicIpAddressTypeLinux": "Static",
+        "publicIpAddressDNSNameLinux": "[concat('vm', parameters('deploymentID'))]",
+        "publicIpAddressSkuLinux": "Basic",
+        "publicIpAddressName" : "[concat('pip',parameters('DeploymentID'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2020-06-01",
+            "name": "MyVNET",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "10.0.0.0/16"
+                    ]
+                },
+                "subnets": [
+                    {
+                        "name": "MySub",
+                        "properties": {
+                            "addressPrefix": "10.0.1.0/24"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[variables('publicIpAddressName')]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2019-02-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+              "publicIpAllocationMethod": "[variables('publicIpAddressTypeLinux')]",
+              "dnsSettings": {
+                "domainNameLabel": "[concat(variables('publicIpAddressDNSNameLinux'))]"
+              }
+            },
+            "sku": {
+              "name": "[variables('publicIpAddressSkuLinux')]"
+            }
+          },
+        {
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2020-06-01",
+            "name": "myNIC",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/virtualNetworks', 'MyVNET')]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "myIPConfiguration",
+                        "properties": {
+                            "subnet": {
+                                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', 'MyVNET', 'MySub')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic"
+                        }
+                    }
+                ]
+            }
+        },
+        {
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2019-07-01",
+            "name": "MyVM",
+            "location": "[resourceGroup().location]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Network/networkInterfaces', 'myNIC')]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "Standard_B2ms"
+                },
+                "storageProfile": {
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "18.04-LTS",
+                        "version": "latest"
+                    },
+                    "osDisk": {
+                        "createOption": "FromImage"
+                    }
+                },
+                "osProfile": {
+                    "computerName": "MyVM",
+                    "adminUsername": "labadmin",
+                    "adminPassword": "P@ssw0rd_123"
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces','myNIC')]"
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "apiVersion": "2019-06-01",
+            "name": "[concat('mystorageaccount', take(uniqueString(resourceGroup().id), 6))]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Standard_LRS"
+            },
+            "kind": "StorageV2",
+            "properties": {
+                "publicNetworkAccess": "Enabled"
+            }
+        }
+    ],
+    "outputs": {
+        "ODLUser": {
+            "type": "String",
+            "value": "[variables('userName')]"
+        },
+        "Command to Connect to linux VM ": {
+            "type": "string",
+            "value": "[concat('ssh  labadmin@', reference(resourceId('Microsoft.Network/publicIPAddresses',variables('publicIpAddressName'))).dnsSettings.fqdn)]"
+          }
+      
+    }
+}
