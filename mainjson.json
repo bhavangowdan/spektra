@@ -1,0 +1,586 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+  "contentVersion": "2.1.9.9",
+  "parameters": {
+    "rg-1-Name": {
+      "type": "string"
+    },
+    "rg-1-Location": {
+      "type": "string"
+    },
+    "rg-2-Name": {
+      "type": "string"
+    },
+    "rg-2-Location": {
+      "type": "string"
+    },
+    "subscriptionID": {
+      "type": "string"
+    },
+    "adminUsername": {
+      "type": "string"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "asr-name": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "vm-1-Name": "[concat('demo','-1')]",
+    "vm-2-Name": "[concat('demo','-2')]",
+    "vm-3-Name": "[concat('demo','-3')]",
+    "public-ip-vm1": "public-ip-1",
+    "public-ip-vm2": "public-ip-2",
+    "public-ip-vm3": "public-ip-3",
+    "networkSecurityGroupName-vm": "[concat('demo', '-nsg')]",
+    "vnet-name": "[concat('demo','-vnet')]",
+    "subnet-vm-name": "[concat('demo','-subnet')]",
+    "public-Ip-1-AddressDNSName": "[concat('demo-pip-1-',uniqueString(subscription().id))]",
+    "public-Ip-2-AddressDNSName": "[concat('demo-pip-2-',uniqueString(subscription().id))]",
+    "public-Ip-3-AddressDNSName": "[concat('demo-pip-3-',uniqueString(subscription().id))]",
+    "traffic-manager-profile": "[concat('demo-traffic-manager',uniqueString(subscription().id))]",
+    "networkInterface-vm1-Name": "[concat(variables('vm-1-Name'), '-nic')]",
+    "networkInterface-vm2-Name": "[concat(variables('vm-2-Name'), '-nic')]",
+    "networkInterface-vm3-Name": "[concat(variables('vm-3-Name'), '-nic')]",
+    "virtualMachine-1-Zone": "1",
+    "virtualMachine-2-Zone": "2",
+    "virtualMachine-3-Zone": "3"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('rg-1-Name')]",
+      "location": "[parameters('rg-1-Location')]",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Resources/resourceGroups",
+      "apiVersion": "2022-09-01",
+      "name": "[parameters('rg-2-Name')]",
+      "location": "[parameters('rg-2-Location')]",
+      "properties": {}
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "First-Deployment",
+      "resourceGroup": "[parameters('rg-1-Name')]",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+              "name": "[variables('public-ip-vm1')]",
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2023-04-01",
+              "location": "[parameters('rg-1-Location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "zones": [
+                "[variables('virtualMachine-1-Zone')]"
+              ],
+              "properties": {
+                "publicIPAllocationMethod": "Static",
+                "dnsSettings": {
+                  "domainNameLabel": "[variables('public-Ip-1-AddressDNSName')]"
+                }
+              }
+            },
+            {
+              "name": "[variables('networkSecurityGroupName-vm')]",
+              "type": "Microsoft.Network/networkSecurityGroups",
+              "apiVersion": "2023-04-01",
+              "location": "[parameters('rg-1-Location')]",
+              "properties": {
+                "securityRules": [
+                  {
+                    "name": "nsgRule1",
+                    "properties": {
+                      "description": "description",
+                      "protocol": "Tcp",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "3389",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*",
+                      "access": "Allow",
+                      "priority": 100,
+                      "direction": "Inbound"
+                    }
+                  },
+                  {
+                    "name": "Allow-HTTP",
+                    "properties": {
+                      "priority": 101,
+                      "protocol": "Tcp",
+                      "access": "Allow",
+                      "direction": "Inbound",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "80",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*"
+                    }
+                  },
+                  {
+                    "name": "Allow-HTTPS",
+                    "properties": {
+                      "priority": 110,
+                      "protocol": "Tcp",
+                      "access": "Allow",
+                      "direction": "Inbound",
+                      "sourcePortRange": "*",
+                      "destinationPortRange": "443",
+                      "sourceAddressPrefix": "*",
+                      "destinationAddressPrefix": "*"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "[variables('vnet-name')]",
+              "type": "Microsoft.Network/virtualNetworks",
+              "apiVersion": "2023-04-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName-vm'))]"
+              ],
+              "properties": {
+                "addressSpace": {
+                  "addressPrefixes": [
+                    "10.0.0.0/16"
+                  ]
+                },
+                "subnets": [
+                  {
+                    "name": "[variables('subnet-vm-name')]",
+                    "properties": {
+                      "addressPrefix": "10.0.0.0/24",
+                      "networkSecurityGroup": {
+                        "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/networkSecurityGroups', variables('networkSecurityGroupName-vm'))]"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "[variables('networkInterface-vm1-Name')]",
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2023-04-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses', variables('public-ip-vm1'))]",
+                "[resourceId(parameters('subscriptionID'), parameters('rg-1-Name'), 'Microsoft.Network/virtualNetworks', variables('vnet-name'))]"
+              ],
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "ipConfig1",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses', variables('public-ip-vm1'))]"
+                      },
+                      "subnet": {
+                        "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/virtualNetworks/subnets', variables('vnet-name'), variables('subnet-vm-name'))]"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "[variables('vm-1-Name')]",
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2023-03-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/networkInterfaces', variables('networkInterface-vm1-Name'))]"
+              ],
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "Standard_B2s"
+                },
+                "osProfile": {
+                  "computerName": "[variables('vm-1-Name')]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "MicrosoftWindowsServer",
+                    "offer": "WindowsServer",
+                    "sku": "2022-datacenter-azure-edition-hotpatch",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "name": "windowsVM1OSDisk",
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/networkInterfaces', variables('networkInterface-vm1-Name'))]"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "[format('{0}/{1}', variables('vm-1-Name'), 'InstallWebServer')]",
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2023-03-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Compute/virtualMachines', variables('vm-1-Name'))]"
+              ],
+              "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.10",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "fileUris": [
+                    "https://demopublicstorage21350.blob.core.windows.net/demo/demo.ps1"
+                  ],
+                  "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File demo.ps1"
+                }
+              }
+            },
+            {
+              "name": "[variables('public-ip-vm2')]",
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2023-04-01",
+              "location": "[parameters('rg-1-Location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "zones": [
+                "[variables('virtualMachine-2-Zone')]"
+              ],
+              "properties": {
+                "publicIPAllocationMethod": "Static",
+                "dnsSettings": {
+                  "domainNameLabel": "[variables('public-Ip-2-AddressDNSName')]"
+                }
+              }
+            },
+            {
+              "name": "[variables('networkInterface-vm2-Name')]",
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2023-04-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses', variables('public-ip-vm2'))]",
+                "[resourceId(parameters('subscriptionID'), parameters('rg-1-Name'), 'Microsoft.Network/virtualNetworks', variables('vnet-name'))]"
+              ],
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "ipConfig1",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses', variables('public-ip-vm2'))]"
+                      },
+                      "subnet": {
+                        "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/virtualNetworks/subnets', variables('vnet-name'), variables('subnet-vm-name'))]"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "[variables('vm-2-Name')]",
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2023-03-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/networkInterfaces', variables('networkInterface-vm2-Name'))]"
+              ],
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "Standard_B2s"
+                },
+                "osProfile": {
+                  "computerName": "[variables('vm-2-Name')]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "MicrosoftWindowsServer",
+                    "offer": "WindowsServer",
+                    "sku": "2022-datacenter-azure-edition-hotpatch",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "name": "windowsVM2OSDisk",
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/networkInterfaces', variables('networkInterface-vm2-Name'))]"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "[format('{0}/{1}', variables('vm-2-Name'), 'InstallWebServer')]",
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2023-03-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Compute/virtualMachines', variables('vm-2-Name'))]"
+              ],
+              "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.10",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "fileUris": [
+                    "https://demopublicstorage21350.blob.core.windows.net/demo/demo.ps1"
+                  ],
+                  "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File demo.ps1"
+                }
+              }
+            },
+            {
+              "name": "[variables('public-ip-vm3')]",
+              "type": "Microsoft.Network/publicIPAddresses",
+              "apiVersion": "2023-04-01",
+              "location": "[parameters('rg-1-Location')]",
+              "sku": {
+                "name": "Standard"
+              },
+              "zones": [
+                "[variables('virtualMachine-3-Zone')]"
+              ],
+              "properties": {
+                "publicIPAllocationMethod": "Static",
+                "dnsSettings": {
+                  "domainNameLabel": "[variables('public-Ip-3-AddressDNSName')]"
+                }
+              }
+            },
+            {
+              "name": "[variables('networkInterface-vm3-Name')]",
+              "type": "Microsoft.Network/networkInterfaces",
+              "apiVersion": "2023-04-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses', variables('public-ip-vm3'))]",
+                "[resourceId(parameters('subscriptionID'), parameters('rg-1-Name'), 'Microsoft.Network/virtualNetworks', variables('vnet-name'))]"
+              ],
+              "properties": {
+                "ipConfigurations": [
+                  {
+                    "name": "ipConfig1",
+                    "properties": {
+                      "privateIPAllocationMethod": "Dynamic",
+                      "publicIPAddress": {
+                        "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses', variables('public-ip-vm3'))]"
+                      },
+                      "subnet": {
+                        "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/virtualNetworks/subnets', variables('vnet-name'), variables('subnet-vm-name'))]"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "[variables('vm-3-Name')]",
+              "type": "Microsoft.Compute/virtualMachines",
+              "apiVersion": "2023-03-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/networkInterfaces', variables('networkInterface-vm3-Name'))]"
+              ],
+              "properties": {
+                "hardwareProfile": {
+                  "vmSize": "Standard_B2s"
+                },
+                "osProfile": {
+                  "computerName": "[variables('vm-3-Name')]",
+                  "adminUsername": "[parameters('adminUsername')]",
+                  "adminPassword": "[parameters('adminPassword')]"
+                },
+                "storageProfile": {
+                  "imageReference": {
+                    "publisher": "MicrosoftWindowsServer",
+                    "offer": "WindowsServer",
+                    "sku": "2022-datacenter-azure-edition-hotpatch",
+                    "version": "latest"
+                  },
+                  "osDisk": {
+                    "name": "windowsVM3OSDisk",
+                    "caching": "ReadWrite",
+                    "createOption": "FromImage"
+                  }
+                },
+                "networkProfile": {
+                  "networkInterfaces": [
+                    {
+                      "id": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/networkInterfaces', variables('networkInterface-vm3-Name'))]"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "[format('{0}/{1}', variables('vm-3-Name'), 'InstallWebServer')]",
+              "type": "Microsoft.Compute/virtualMachines/extensions",
+              "apiVersion": "2023-03-01",
+              "location": "[parameters('rg-1-Location')]",
+              "dependsOn": [
+                "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Compute/virtualMachines', variables('vm-3-Name'))]"
+              ],
+              "properties": {
+                "publisher": "Microsoft.Compute",
+                "type": "CustomScriptExtension",
+                "typeHandlerVersion": "1.10",
+                "autoUpgradeMinorVersion": true,
+                "settings": {
+                  "fileUris": [
+                    "https://demopublicstorage21350.blob.core.windows.net/demo/demo.ps1"
+                  ],
+                  "commandToExecute": "powershell.exe -ExecutionPolicy Unrestricted -File demo.ps1"
+                }
+              }
+            },
+            {
+              "name": "[variables('traffic-manager-profile')]",
+              "type": "Microsoft.Network/trafficManagerProfiles",
+              "apiVersion": "2022-04-01",
+              "location": "global",
+              "properties": {
+                "trafficRoutingMethod": "Performance",
+                "profileStatus": "Enabled",
+                "dnsConfig": {
+                  "relativeName": "[variables('traffic-manager-profile')]",
+                  "ttl": 10
+                },
+                "monitorConfig": {
+                  "protocol": "HTTP",
+                  "port": 80,
+                  "path": "/",
+                  "intervalInSeconds": 10,
+                  "timeoutInSeconds": 5,
+                  "toleratedNumberOfFailures": 1
+                }
+              }
+            },
+            {
+            "type": "Microsoft.Network/trafficmanagerprofiles/AzureEndpoints",
+            "apiVersion": "2022-04-01",
+            "name": "[concat(variables('traffic-manager-profile'),'/','endpoint1')]",
+            "dependsOn": [
+              "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/trafficManagerProfiles', variables('traffic-manager-profile'))]",
+              "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses', variables('public-ip-vm1'))]"
+              ],
+            "properties": {
+              "alwaysServe": "Disabled",
+              "endpointStatus": "Enabled",
+              "targetResourceId": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses',variables('public-ip-vm1'))]"
+              }
+            },
+            {
+            "type": "Microsoft.Network/trafficmanagerprofiles/AzureEndpoints",
+            "apiVersion": "2022-04-01",
+            "name": "[concat(variables('traffic-manager-profile'),'/','endpoint2')]",
+            "dependsOn": [
+              "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/trafficManagerProfiles', variables('traffic-manager-profile'))]",
+              "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses', variables('public-ip-vm2'))]"
+              ],
+            "properties": {
+              "alwaysServe": "Disabled",
+              "endpointStatus": "Enabled",
+              "targetResourceId": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses',variables('public-ip-vm2'))]"
+              }
+            },
+            {
+            "type": "Microsoft.Network/trafficmanagerprofiles/AzureEndpoints",
+            "apiVersion": "2022-04-01",
+            "name": "[concat(variables('traffic-manager-profile'),'/','endpoint3')]",
+            "dependsOn": [
+              "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/trafficManagerProfiles', variables('traffic-manager-profile'))]",
+              "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses', variables('public-ip-vm3'))]"
+              ],
+            "properties": {
+              "alwaysServe": "Disabled",
+              "endpointStatus": "Enabled",
+              "targetResourceId": "[resourceId(parameters('subscriptionID'),parameters('rg-1-Name'), 'Microsoft.Network/publicIPAddresses',variables('public-ip-vm3'))]"
+              }
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/resourceGroups/', parameters('rg-1-Name'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2022-09-01",
+      "name": "First-Deployment",
+      "resourceGroup": "[parameters('rg-2-Name')]",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": [
+            {
+            "apiVersion": "2023-04-01",
+            "name": "[parameters('asr-name')]",
+            "location": "[parameters('rg-2-Location')]",
+            "type": "Microsoft.RecoveryServices/vaults",
+              "sku": {
+                "name": "RS0",
+                "tier": "Standard"
+              },
+            "properties": {
+               "publicNetworkAccess": "Enabled",
+               "securitySettings": {
+                  "immutabilitySettings": {
+                      "state": "Disabled"
+                  }
+                }
+              }
+            },
+            {
+            "type": "Microsoft.RecoveryServices/vaults/backupstorageconfig",
+            "apiVersion": "2022-02-01",
+            "name": "[format('{0}/{1}', parameters('asr-name'), 'vaultstorageconfig')]",
+            "properties": {
+              "storageModelType": "GeoRedundant",
+              "crossRegionRestoreFlag": true
+            },
+             "dependsOn": [
+               "[resourceId(parameters('subscriptionID'),parameters('rg-2-Name'), 'Microsoft.RecoveryServices/vaults', parameters('asr-name'))]"
+              ]
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/resourceGroups/', parameters('rg-2-Name'))]"
+      ]
+    }
+  ]
+}
