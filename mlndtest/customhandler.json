@@ -1,0 +1,15 @@
+{
+    "GlobalRoles": [
+        "GLOBAL CONTRIBUTOR",
+        "Global Incident Response Analyst"
+    ],
+    "ProjectRoles": [],
+    "TenantShortName": "wizlabs",
+    "TenantDomainName": "wiziolabs.onmicrosoft.com",
+    "OutputValues": [
+        {
+            "Name": "WIZ Portal",
+            "Value": "https://app.wiz.io/idp-login?clientId=61cpr8mltih8vp911go2oto2bq&idp=CloudLabs-SSO"
+        }
+    ]
+}
