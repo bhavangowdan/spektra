@@ -12,9 +12,7 @@
     "Microsoft.Synapse/workspaces/sqlPools/read",
     "Microsoft.Synapse/workspaces/bigDataPools/read",
     "Microsoft.Synapse/workspaces/sqlPools/pause/action",
-    "Microsoft.Synapse/workspaces/sqlPools/resume/action",
-    "Microsoft.Synapse/workspaces/bigDataPools/pause/action",
-    "Microsoft.Synapse/workspaces/bigDataPools/pause/action"
+    "Microsoft.Synapse/workspaces/sqlPools/resume/action"
   ],
   "NotActions": [
 
