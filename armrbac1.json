@@ -1,26 +1,22 @@
 {
-    "Name":  "Spektra Custom RBAC",
-    "Id":  null,
-    "IsCustom":  true,
-    "Description":  "Spektra Training Custom Role.",
-    "Actions":  [
-                    "microsoft.alertsmanagement/smartDetectorAlertRules/*",
-                    "Microsoft.Authorization/*/read",
-                    "Microsoft.Compute/disks/*",
-                    "Microsoft.Compute/virtualMachines/*",
-                    "Microsoft.Compute/virtualMachines/extensions/*",
-                    "microsoft.insights/actiongroups/*",
-                    "Microsoft.Insights/components/*",
-                    "Microsoft.KeyVault/vaults/*",
-                    "Microsoft.MachineLearningServices/workspaces/*",
-                    "Microsoft.Network/networkSecurityGroups/*",
-                    "Microsoft.Network/publicIPAddresses/*",
-                    "Microsoft.Network/virtualNetworks/*",
-                    "Microsoft.Resources/deployments/*",
-                    "Microsoft.Resources/subscriptions/resourceGroups/read",
-                    "Microsoft.Storage/storageAccounts/*"
-                ],
-    "NotActions":  [
+  "Name": "Building an end to end analytics pipeline in Microsoft Azure RBAC",
+  "Id": null,
+  "IsCustom": true,
+  "Description": "Spektra Training Custom Role.",
+  "Actions": [
+    "Microsoft.Authorization/roleAssignments/write",
+    "Microsoft.Resources/deployments/*",
+    "Microsoft.Resources/deployments/validate/action",
+    "Microsoft.Resources/subscriptions/resourceGroups/read",
+    "Microsoft.Synapse/workspaces/read",
+    "Microsoft.Synapse/workspaces/sqlPools/read",
+    "Microsoft.Synapse/workspaces/bigDataPools/read",
+    "Microsoft.Synapse/workspaces/sqlPools/pause/action",
+    "Microsoft.Synapse/workspaces/sqlPools/resume/action",
+    "Microsoft.Synapse/workspaces/bigDataPools/pause/action",
+    "Microsoft.Synapse/workspaces/bigDataPools/pause/action"
+  ],
+  "NotActions": [
 
-                   ]
+  ]
 }
