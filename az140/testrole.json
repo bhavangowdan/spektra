@@ -10,7 +10,7 @@
         "Microsoft.Resources/subscriptions/resourceGroups/read",
         "Microsoft.Synapse/workspaces/*",
         "Microsoft.Synapse/workspaces/read",
-        "Microsoft.Synapse/workspaces/roleAssignments/write, delete",
+        "Microsoft.Synapse/workspaces/roleAssignments/write",
         "Microsoft.Synapse/workspaces/managedPrivateEndpoint/write",
 "Microsoft.Synapse/workspaces/bigDataPool/useCompute/action",
 "Microsoft.Synapse/workspaces/bigDataPool/viewLogs/action",
