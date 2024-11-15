@@ -8,7 +8,10 @@
         "Microsoft.Resources/deployments/*",
         "Microsoft.Resources/deployments/validate/action",
         "Microsoft.Resources/subscriptions/resourceGroups/read",
-        "Microsoft.Synapse/workspaces/*"
+        "Microsoft.Synapse/workspaces/*",
+        "Microsoft.Synapse/workspaces/sqlPools/read",
+        "Microsoft.Synapse/workspaces/sqlPools/execute",
+        "Microsoft.Synapse/workspaces/sqlPools/query"
     ],
     "NotActions": [
         "Microsoft.Synapse/workspaces/sqlPools/write",
