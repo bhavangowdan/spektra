@@ -1,0 +1,14 @@
+{
+    "Name": "Building an end to end analytics pipeline in Microsoft Azure RBAC",
+    "Id": null,
+    "IsCustom": true,
+    "Description": "Spektra Training Custom Role.",
+    "Actions": [
+        "Microsoft.Authorization/roleAssignments/write",
+        "Microsoft.Resources/deployments/*",
+        "Microsoft.Resources/deployments/validate/action",
+        "Microsoft.Resources/subscriptions/resourceGroups/read",
+        "Microsoft.Synapse/workspaces/*"
+    ],
+    "NotActions": []
+}
