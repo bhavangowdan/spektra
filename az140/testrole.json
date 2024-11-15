@@ -10,5 +10,11 @@
         "Microsoft.Resources/subscriptions/resourceGroups/read",
         "Microsoft.Synapse/workspaces/*"
     ],
-    "NotActions": []
+    "NotActions": [
+        "Microsoft.Synapse/sqlPools/write",
+        "Microsoft.Synapse/sqlPools/deploy/action",
+        "Microsoft.Synapse/sparkPools/write",
+        "Microsoft.Synapse/sparkPools/deploy/action",
+        
+    ]
 }
