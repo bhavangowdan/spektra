@@ -175,7 +175,7 @@
             ],
             "properties": {
                 "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', variables('Synapseroleid'))]",
-                "principalId": "[parameters('AzureUserName')]"
+                "principalId": "[reference(concat('Microsoft.Authorization/roleAssignments/', parameters('AzureUserName')), '2020-04-01-preview', 'Full').principalId]""
             }
         },
         {
