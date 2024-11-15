@@ -11,10 +11,7 @@
         "Microsoft.Synapse/workspaces/*"
     ],
     "NotActions": [
-        "Microsoft.Synapse/sqlPools/write",
-        "Microsoft.Synapse/sqlPools/deploy/action",
-        "Microsoft.Synapse/sparkPools/write",
-        "Microsoft.Synapse/sparkPools/deploy/action",
-        
+        "Microsoft.Synapse/workspaces/sqlPools/write",
+        "Microsoft.Synapse/workspaces/bigDataPools/write"    
     ]
 }
