@@ -9,7 +9,7 @@
     },
     {
         "verb": "read",
-        "resourceType": "cloud-shel"
+        "resourceType": "cloud-shell"
     },
     {
         "verb": "manage",
