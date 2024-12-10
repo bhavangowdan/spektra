@@ -1,0 +1,18 @@
+[
+    {
+        "verb": "manage",
+        "resourceType": "all-resources"
+    },
+    {
+        "verb": "read",
+        "resourceType": "all-resources"
+    },
+    {
+        "verb": "read",
+        "resourceType": "cloud-shel"
+    },
+    {
+        "verb": "manage",
+        "resourceType": "cloud-shell"
+    }
+]
