@@ -1,0 +1,10 @@
+[
+    {
+        "verb": "manage",
+        "resourceType": "all-resources"
+    },
+    {
+        "verb": "read",
+        "resourceType": "all-resources"
+    }
+]
