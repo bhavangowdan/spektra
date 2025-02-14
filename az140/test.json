@@ -1,0 +1,13 @@
+{
+  "parameters": {
+    "Region": {
+      "value": "GET-DEPLOYMENT-REGION"
+    },
+    "TenancyOciId": {
+      "value": "GET-OCI-TENANT-ID"
+    },
+    "CompartmentOciId": {
+      "value": "GET-OCI-COMPARTMENT-ID"
+    }
+  }
+}
