@@ -6,6 +6,9 @@
     "TenancyOciId": {
       "value": "GET-OCI-TENANT-ID"
     },
+"CloudLabsDeploymentID": {
+      "value": "GET-DEPLOYMENT-ID"
+    },
     "CompartmentOciId": {
       "value": "GET-OCI-COMPARTMENT-ID"
     }
