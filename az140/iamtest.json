@@ -1,0 +1,44 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Create IAM User with hardcoded name",
+  "Parameters": {
+    "CloudLabsDeploymentID": {
+      "Description": "Deployment ID",
+      "Type": "String"
+    },
+    "AccountId": {
+      "Type": "String"
+    },
+    "userName": {
+      "Type": "String"
+    },
+    "password": {
+      "Type": "String",
+      "NoEcho": true
+    }
+  },
+  "Resources": {
+    "IAMUser": {
+      "Type": "AWS::IAM::User",
+      "Properties": {
+        "UserName": "MyHardcodedUser",
+        "Tags": [
+          {
+            "Key": "DeployedBy",
+            "Value": "CloudLabs"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "UserName": {
+      "Description": "IAM User Name",
+      "Value": { "Ref": "IAMUser" }
+    },
+    "Region": {
+      "Description": "Deployment Region",
+      "Value": { "Ref": "AWS::Region" }
+    }
+  }
+}
