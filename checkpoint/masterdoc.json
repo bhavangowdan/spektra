@@ -1,0 +1,23 @@
+[
+  {
+    "Name": "Udacity Cloud Native Architect Nanodegree",
+    "Language": "English",
+    "Files": [
+      {
+        "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/Udacity/main/Cloud-Native-Architect/Gettingstarted.md",
+        "Order": 1
+      },
+       {
+        "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/AustinCC/refs/heads/main/Knowbeforeyougo.md?token=GHSAT0AAAAAADETZCJTLS3JHBTPLAJ2QGAY2BYKGCQ",
+        "Order": 2
+      },
+      {
+        "RawFilePath": "https://raw.githubusercontent.com/CloudLabsAI-Azure/AustinCC/refs/heads/main/Knowbeforeyougo.md?token=GHSAT0AAAAAADETZCJTLS3JHBTPLAJ2QGAY2BYKGCQ",
+        "Order": 3
+      },
+
+
+
+    ]
+  }
+]
