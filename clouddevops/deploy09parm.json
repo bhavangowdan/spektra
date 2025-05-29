@@ -8,7 +8,7 @@
       "value": "GET-DEPLOYMENT-ID"
     },
 "odluniq": {
-"Value":"GET-ODL-UNIQUENAME"
+"Value":"GET-LABGUIDE-SHORTCUT"
 }
   }
 }
