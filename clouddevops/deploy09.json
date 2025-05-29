@@ -20,7 +20,7 @@
     "UserName": {
       "type": "String",
       "value": "[variables('userName')]"
-    },
+     },
     "odluniqs": {
       "type": "String",
       "value": "[parameters('odluniq')]"
