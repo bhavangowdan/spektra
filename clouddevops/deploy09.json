@@ -4,7 +4,11 @@
   "parameters": {
     "DeploymentID": {
       "type": "string"
-    }
+    },
+"odluniq": {
+"type": "string"
+}
+}
   },
 
   "variables": {
