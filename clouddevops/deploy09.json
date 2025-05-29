@@ -8,8 +8,7 @@
 "odluniq": {
 "type": "string"
 }
-}
-  },
+},
 
   "variables": {
     "userName": "[concat('odluser',parameters('DeploymentID'))]"
@@ -24,5 +23,6 @@
     "odluniqs": {
       "type": "String",
       "value": "[parameters('odluniq')]"
+    }
   } 
 }
