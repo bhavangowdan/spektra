@@ -47,3 +47,20 @@ WindowsServerCommon
 InstallCloudLabsShadow $ODLID $InstallCloudLabsShadow
 Enable-CloudLabsEmbeddedShadow $vmAdminUsername $trainerUserName $trainerUserPassword
 
+# Excel Short cut
+$shortcutName = "EXCEL.lnk"
+$targetPath = "C:\Program Files\Microsoft Office\root\Office16\EXCEL.EXE"
+$desktopPath = [Environment]::GetFolderPath("Desktop")
+$shortcutPath = Join-Path $desktopPath $shortcutName
+
+# Create WScript.Shell COM object
+$WScriptShell = New-Object -ComObject WScript.Shell
+
+# Create the shortcut
+$Shortcut = $WScriptShell.CreateShortcut($shortcutPath)
+$Shortcut.TargetPath = $targetPath
+$Shortcut.WorkingDirectory = Split-Path $targetPath
+$Shortcut.IconLocation = "$targetPath,0"
+$Shortcut.Save()
+
+
