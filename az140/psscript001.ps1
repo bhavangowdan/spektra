@@ -46,5 +46,4 @@ CloudlabsManualAgent Install
 WindowsServerCommon
 InstallCloudLabsShadow $ODLID $InstallCloudLabsShadow
 Enable-CloudLabsEmbeddedShadow $vmAdminUsername $trainerUserName $trainerUserPassword
-choco install microsoft-office-deployment -y --package-parameters "/Install Office /Product Excel"
-choco install powerautomatedesktop -y
+
