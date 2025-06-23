@@ -45,7 +45,6 @@ $commonscriptpath = "$path" + "\cloudlabs-common\cloudlabs-windows-functions.ps1
 CloudlabsManualAgent Install
 WindowsServerCommon
 InstallCloudLabsShadow $ODLID $InstallCloudLabsShadow
-CreateCredFile $AzureUserName $AzurePassword $AzureTenantID $AzureSubscriptionID $DeploymentID $ODLID
 Enable-CloudLabsEmbeddedShadow $vmAdminUsername $trainerUserName $trainerUserPassword
 choco install microsoft-office-deployment -y --package-parameters "/Install Office /Product Excel"
 choco install powerautomatedesktop -y
