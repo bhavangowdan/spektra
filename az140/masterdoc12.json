@@ -1,0 +1,12 @@
+[
+  {
+    "Name": "Inject Key Test",
+    "Language": "English",
+    "Files": [
+      {
+        "RawFilePath": "https://raw.githubusercontent.com/bhavangowdan/AZ400-DesigningandImplementingMicrosoftDevOpsSolutions/refs/heads/12-22-updates/Instructions/Labs/AZ400_M03_L07_Implementing_GitHub_Actions_for_CI_CD.md",
+        "Order": 1
+      }
+    ]
+  }
+]
