@@ -1,0 +1,51 @@
+      {
+        "if": {
+        "allof": [
+          {
+            "field": "type",
+            "equals": "Microsoft.MachineLearningServices/workspaces/computes"
+          },
+          {
+            "field": "Microsoft.MachineLearningServices/workspaces/computes/computeType",
+            "in": [
+              "AmlCompute",
+              "ComputeInstance",
+              "AKS"
+            ]
+          },
+          {
+            "not": {
+              "anyOf": [
+                {
+                  "field": "Microsoft.MachineLearningServices/workspaces/computes/vmSize",
+                  "in": [
+                    "Standard_DS1_v2",
+                    "Standard_DS2_v2",
+                    "Standard_DS3_v2",
+                    "Standard_D2s_v3",
+                    "Standard_D1_v2",
+                    "Standard_D2_v2",
+                    "Standard_D3_v2"
+                  ]
+                },
+                {
+                  "field": "Microsoft.MachineLearningServices/workspaces/computes/agentVMSize",
+                  "in": [
+                    "Standard_DS1_v2",
+                    "Standard_DS2_v2",
+                    "Standard_DS3_v2",
+                    "Standard_D2s_v3",
+                    "Standard_D1_v2",
+                    "Standard_D2_v2",
+                    "Standard_D3_v2"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "then": {
+        "effect": "deny"
+      }
+    }
