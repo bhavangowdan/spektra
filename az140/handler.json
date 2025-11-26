@@ -1,0 +1,14 @@
+{
+    "GlobalRoles": [
+        "Partner-Demo"
+    ],
+    "ProjectRoles": [],
+    "TenantShortName": "wizdemoext",
+    "TenantDomainName": "wizlabs.cloudseclabs.io",
+    "OutputValues": [
+        {
+            "Name": "WIZ Portal",
+            "Value": "https://demo.wiz.io/idp-login?clientId=63lefpffk245ro7kpro2gk4ppn&idp=Wiz-Partner-Demo-CL"
+        }
+    ]
+}
