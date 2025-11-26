@@ -1,14 +1,20 @@
 {
     "GlobalRoles": [
-        "Partner-Demo"
+        "CTF-Defend-MCP",
+		"metactf207", 
+		"claudeai-member"
     ],
     "ProjectRoles": [],
-    "TenantShortName": "wizdemoext",
+    "TenantShortName": "wizctf",
     "TenantDomainName": "wizlabs.cloudseclabs.io",
     "OutputValues": [
         {
             "Name": "WIZ Portal",
-            "Value": "https://demo.wiz.io/idp-login?clientId=63lefpffk245ro7kpro2gk4ppn&idp=Wiz-Partner-Demo-CL"
+            "Value": "https://app.wiz.io/idp-login?clientId=3hcu9h6l906b37cfltccat6jve&idp=MagicLabs-SSO-HOL"
+        },
+		{
+            "Name": "CTF Game Portal",
+            "Value": "https://ctf.training.wiz.io"
         }
     ]
 }
