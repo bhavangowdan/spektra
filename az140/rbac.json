@@ -1,0 +1,16 @@
+{
+  "Name": "Spektra Custom RBAC",
+  "Id": null,
+  "IsCustom": true,
+  "Description": "Spektra Training Custom Role.",
+  "Actions": [
+    "Microsoft.KeyVault/vaults/*",
+    "Microsoft.Compute/diskEncryptionSets/*",
+    "Microsoft.Compute/disks/*",
+    "Microsoft.Resources/deployments/*",
+    "Microsoft.Resources/subscriptions/resourceGroups/read"
+  ],
+  "NotActions": [
+
+  ]
+}
