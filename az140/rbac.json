@@ -13,5 +13,10 @@
   ],
   "NotActions": [
 
-  ]
+  ],
+ "dataActions": [
+  "Microsoft.KeyVault/vaults/keys/create",
+  "Microsoft.KeyVault/vaults/keys/read",
+  "Microsoft.KeyVault/vaults/keys/list"
+]
 }
