@@ -1,0 +1,14 @@
+{
+    "GlobalRoles": [
+        "Global Contributor"
+    ],
+    "ProjectRoles": [],
+    "TenantShortName": "bcmp",
+    "TenantDomainName": "wizlabs.cloudseclabs.io",
+    "OutputValues": [
+        {
+            "Name": "WIZ Portal",
+            "Value": "https://app.wiz.io/idp-login?clientId=7576ajts5ea290sq0pduskfj4a&idp=Technical-Bootcamp-SSO"
+        }
+    ]
+}
