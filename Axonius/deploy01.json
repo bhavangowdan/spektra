@@ -1,0 +1,1792 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "deploymentName": {
+      "type": "string",
+      "defaultValue": "multi-region",
+      "metadata": {
+        "description": "Deployment name prefix for all resources"
+      }
+    },
+    "deploymentId": {
+      "type": "string",
+      "metadata": {
+        "description": "Unique deployment identifier (3-10 characters, lowercase/numbers/hyphens)"
+      }
+    },
+    "regionA": {
+      "type": "string",
+      "defaultValue": "eastus",
+      "metadata": {
+        "description": "Primary region for Windows 11 VMs"
+      }
+    },
+    "regionB": {
+      "type": "string",
+      "defaultValue": "westus",
+      "metadata": {
+        "description": "Secondary region for Windows Server VMs"
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "defaultValue": "azureadmin",
+      "metadata": {
+        "description": "Admin username for VMs"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Admin password for VMs"
+      }
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_D2s_v3",
+      "allowedValues": [
+        "Standard_D2s_v3",
+        "Standard_D4s_v3",
+        "Standard_D8s_v3"
+      ],
+      "metadata": {
+        "description": "VM size for all virtual machines"
+      }
+    },
+    "trafficManagerDnsName": {
+      "type": "string",
+      "defaultValue": "[concat(toLower(parameters('deploymentName')), '-', parameters('deploymentId'), '-', uniqueString(resourceGroup().id))]",
+      "metadata": {
+        "description": "Globally unique DNS name for Traffic Manager (auto-generated if not provided)"
+      }
+    },
+    "allowedSourceIP": {
+      "type": "string",
+      "defaultValue": "*",
+      "metadata": {
+        "description": "Source IP allowed through DNAT rule (use * for all or specific IP)"
+      }
+    },
+    "entraAdminObjectId": {
+      "type": "string",
+      "metadata": {
+        "description": "Object ID of the Entra ID user to assign VM Administrator Login role"
+      }
+    },
+    "gatewayScriptUrl": {
+      "type": "string",
+      "metadata": {
+        "description": "Storage account URL for linux VM shell script"
+      }
+    }
+  },
+  "variables": {
+    "regionAPrefix": "[concat(parameters('deploymentName'), '-', parameters('deploymentId'), '-regionA')]",
+    "regionBPrefix": "[concat(parameters('deploymentName'), '-', parameters('deploymentId'), '-regionB')]",
+    
+    "vnetRegionA": "[concat(variables('regionAPrefix'), '-vnet')]",
+    "vnetRegionB": "[concat(variables('regionBPrefix'), '-vnet')]",
+    
+    "subnetRegionA": "[concat(variables('regionAPrefix'), '-subnet')]",
+    "subnetRegionB": "[concat(variables('regionBPrefix'), '-subnet')]",
+    
+    "nsgRegionA": "[concat(variables('regionAPrefix'), '-nsg')]",
+    "nsgRegionB": "[concat(variables('regionBPrefix'), '-nsg')]",
+    "nsgJumpBox": "[concat(variables('regionAPrefix'), '-jumpbox-nsg')]",
+    
+    "lbRegionA": "[concat(variables('regionAPrefix'), '-lb')]",
+    "lbRegionB": "[concat(variables('regionBPrefix'), '-lb')]",
+    
+    "firewallRegionA": "[concat(variables('regionAPrefix'), '-azfw')]",
+    "firewallPublicIPRegionA": "[concat(variables('regionAPrefix'), '-azfw-pip')]",
+    "firewallPolicyRegionA": "[concat(variables('regionAPrefix'), '-azfw-policy')]",
+    "firewallRegionB": "[concat(variables('regionBPrefix'), '-azfw')]",
+    "firewallPublicIPRegionB": "[concat(variables('regionBPrefix'), '-azfw-pip')]",
+    "firewallPolicyRegionB": "[concat(variables('regionBPrefix'), '-azfw-policy')]",
+    "firewallSubnetName": "AzureFirewallSubnet",
+    
+    "trafficManagerName": "[concat(parameters('deploymentName'), '-', parameters('deploymentId'), '-tm')]",
+    
+    "win11VMPrefix": "w11vm",
+    "winServerVMPrefix": "srv",
+    "axoniusGatewayVMName": "[concat('axgw-', parameters('deploymentId'))]",
+    "axoniusGatewayNicName": "[concat('axgw-', parameters('deploymentId'), '-nic')]",
+    
+    "vnetAddressRegionA": "10.1.0.0/16",
+    "subnetAddressRegionA": "10.1.1.0/24",
+    "firewallSubnetAddressRegionA": "10.1.255.0/24",
+    "jumpboxSubnetAddressRegionA": "10.1.2.0/24",
+    
+    "vnetAddressRegionB": "10.2.0.0/16",
+    "subnetAddressRegionB": "10.2.1.0/24",
+    "firewallSubnetAddressRegionB": "10.2.255.0/24",
+    "privateDnsZoneName": "[concat('internal.axonius.local-', parameters('deploymentId'))]",
+    "winimageid": "/subscriptions/7de2eb46-2cf0-40cb-bb8a-aa39742fc109/resourceGroups/cloudlabs-mgmt/providers/Microsoft.Compute/galleries/shared_images/images/win11vm/versions/0.0.1",
+    "winserverid": "/subscriptions/7de2eb46-2cf0-40cb-bb8a-aa39742fc109/resourcegroups/cloudlabs-mgmt/providers/Microsoft.Compute/galleries/shared_images/images/winserver/versions/0.0.1"
+
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('nsgRegionA')]",
+      "location": "[parameters('regionA')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "Allow-HTTP",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "80",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Allow-HTTPS",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 110,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Allow-RDP",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 120,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('nsgRegionB')]",
+      "location": "[parameters('regionB')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "Allow-HTTP",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "80",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Allow-HTTPS",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 110,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "Allow-RDP",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 120,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('nsgJumpBox')]",
+      "location": "[parameters('regionA')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "Allow-RDP",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "Purpose": "JumpBox"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('vnetRegionA')]",
+      "location": "[parameters('regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgRegionA'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgJumpBox'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vnetAddressRegionA')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetRegionA')]",
+            "properties": {
+              "addressPrefix": "[variables('subnetAddressRegionA')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgRegionA'))]"
+              }
+            }
+          },
+          {
+            "name": "[variables('firewallSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('firewallSubnetAddressRegionA')]"
+            }
+          },
+          {
+            "name": "JumpBoxSubnet",
+            "properties": {
+              "addressPrefix": "[variables('jumpboxSubnetAddressRegionA')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgJumpBox'))]"
+              }
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('vnetRegionB')]",
+      "location": "[parameters('regionB')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgRegionB'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vnetAddressRegionB')]"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetRegionB')]",
+            "properties": {
+              "addressPrefix": "[variables('subnetAddressRegionB')]",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgRegionB'))]"
+              }
+            }
+          },
+          {
+            "name": "[variables('firewallSubnetName')]",
+            "properties": {
+              "addressPrefix": "[variables('firewallSubnetAddressRegionB')]"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('firewallPublicIPRegionA')]",
+      "location": "[parameters('regionA')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('regionAPrefix'), '-jumpbox-pip')]",
+      "location": "[parameters('regionA')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[concat(toLower(parameters('deploymentName')), '-', parameters('deploymentId'), '-jumpbox-', uniqueString(resourceGroup().id))]"
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('firewallPublicIPRegionB')]",
+      "location": "[parameters('regionB')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "properties": {
+        "publicIPAllocationMethod": "Static"
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/loadBalancers",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('lbRegionA')]",
+      "location": "[parameters('regionA')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]"
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "LoadBalancerFrontEnd",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetRegionA'), variables('subnetRegionA'))]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "BackendPool"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "name": "HTTPRule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations', variables('lbRegionA'), 'LoadBalancerFrontEnd')]"
+              },
+              "backendAddressPool": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('lbRegionA'), 'BackendPool')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 80,
+              "backendPort": 80,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 4,
+              "probe": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', variables('lbRegionA'), 'HealthProbe')]"
+              }
+            }
+          }
+        ],
+        "probes": [
+          {
+            "name": "HealthProbe",
+            "properties": {
+              "protocol": "Tcp",
+              "port": 80,
+              "intervalInSeconds": 5,
+              "numberOfProbes": 2
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/loadBalancers",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('lbRegionB')]",
+      "location": "[parameters('regionB')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionB'))]"
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "LoadBalancerFrontEnd",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetRegionB'), variables('subnetRegionB'))]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "BackendPool"
+          }
+        ],
+        "loadBalancingRules": [
+          {
+            "name": "HTTPRule",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations', variables('lbRegionB'), 'LoadBalancerFrontEnd')]"
+              },
+              "backendAddressPool": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('lbRegionB'), 'BackendPool')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 80,
+              "backendPort": 80,
+              "enableFloatingIP": false,
+              "idleTimeoutInMinutes": 4,
+              "probe": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/probes', variables('lbRegionB'), 'HealthProbe')]"
+              }
+            }
+          }
+        ],
+        "probes": [
+          {
+            "name": "HealthProbe",
+            "properties": {
+              "protocol": "Tcp",
+              "port": 80,
+              "intervalInSeconds": 5,
+              "numberOfProbes": 2
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('win11VMPrefix'), copyIndex(1), '-', parameters('deploymentId'), '-nic')]",
+      "location": "[parameters('regionA')]",
+      "copy": {
+        "name": "nicWin11Copy",
+        "count": 2
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]",
+        "[resourceId('Microsoft.Network/loadBalancers', variables('lbRegionA'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetRegionA'), variables('subnetRegionA'))]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('lbRegionA'), 'BackendPool')]"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "OS": "Windows11"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('regionAPrefix'), '-jumpbox-nic')]",
+      "location": "[parameters('regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('regionAPrefix'), '-jumpbox-pip'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', concat(variables('regionAPrefix'), '-jumpbox-pip'))]"
+              },
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetRegionA'), 'JumpBoxSubnet')]"
+              }
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "Purpose": "JumpBox"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(variables('win11VMPrefix'), '1', '-', parameters('deploymentId'))]",
+      "location": "[parameters('regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('win11VMPrefix'), '1', '-', parameters('deploymentId'), '-nic'))]"
+      ],
+      "identity": {
+        "type": "systemAssigned"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "securityProfile": {
+            "encryptionAtHost": true
+        },
+        "osProfile": {
+          "computerName": "[concat(variables('win11VMPrefix'), '1', '-', parameters('deploymentId'))]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "enableAutomaticUpdates": false,
+            "patchSettings": {
+              "patchMode": "Manual"
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "microsoftwindowsdesktop",
+            "offer": "windows-11",
+            "sku": "win11-24h2-pro",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('win11VMPrefix'), '1', '-', parameters('deploymentId'), '-nic'))]"
+            }
+          ]
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "OS": "Windows11"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(variables('win11VMPrefix'), '2', '-', parameters('deploymentId'))]",
+      "location": "[parameters('regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('win11VMPrefix'), '2', '-', parameters('deploymentId'), '-nic'))]"
+      ],
+      "identity": {
+        "type": "systemAssigned"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(variables('win11VMPrefix'), '2', '-', parameters('deploymentId'))]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "enableAutomaticUpdates": false,
+            "patchSettings": {
+              "patchMode": "Manual"
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "id": "[variables('winimageid')]"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('win11VMPrefix'), '2', '-', parameters('deploymentId'), '-nic'))]"
+            }
+          ]
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "OS": "Windows11"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2024-03-01",
+      "name": "[concat(variables('win11VMPrefix'), copyIndex(1), '-', parameters('deploymentId'), '/AADLoginForWindows')]",
+      "location": "[parameters('regionA')]",
+      "copy": {
+        "name": "aadLoginWin11Copy",
+        "count": 2
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('win11VMPrefix'), copyIndex(1), '-', parameters('deploymentId')))]",
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat(variables('win11VMPrefix'), copyIndex(1), '-', parameters('deploymentId')), 'InstallIIS')]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.ActiveDirectory",
+        "type": "AADLoginForWindows",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(variables('win11VMPrefix'), copyIndex(1), '-', parameters('deploymentId'), '/InstallIIS')]",
+      "location": "[parameters('regionA')]",
+      "copy": {
+        "name": "iisWin11Copy",
+        "count": 2
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('win11VMPrefix'), copyIndex(1), '-', parameters('deploymentId')))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.10",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "https://experienceazure.blob.core.windows.net/templates/Axonius/multi-region/modified/script.ps1"
+          ]
+        },
+        "protectedSettings": {
+          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File Axonius/multi-region/modified/script.ps1', ' -DeploymentID ', parameters('deploymentId'))]"
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "Purpose": "IIS-CrowdStrike-SecurityConfig"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/runCommands",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(variables('win11VMPrefix'), copyIndex(1), '-', parameters('deploymentId'), '/RestartVM')]",
+      "location": "[parameters('regionA')]",
+      "copy": {
+        "name": "restartWin11Copy",
+        "count": 2
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat(variables('win11VMPrefix'), copyIndex(1), '-', parameters('deploymentId')), 'AADLoginForWindows')]"
+      ],
+      "properties": {
+        "source": {
+          "script": "Restart-Computer -Force"
+        },
+        "timeoutInSeconds": 120,
+        "asyncExecution": true,
+        "treatFailureAsDeploymentFailure": false
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "Purpose": "PostProvisioningRestart"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-03-01",
+      "name": "[concat('jumpbox-', parameters('deploymentId'))]",
+      "location": "[parameters('regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('regionAPrefix'), '-jumpbox-nic'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat('jumpbox-', parameters('deploymentId'))]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "enableAutomaticUpdates": false,
+            "patchSettings": {
+              "patchMode": "Manual"
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+              "publisher": "MicrosoftWindowsServer",
+              "offer": "WindowsServer",
+              "sku": "2025-datacenter-g2",
+              "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('regionAPrefix'), '-jumpbox-nic'))]"
+            }
+          ]
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "Purpose": "JumpBox",
+        "OS": "WindowsServer2025"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-03-01",
+      "name": "[concat('jumpbox-', parameters('deploymentId'), '/ConfigureDNS')]",
+      "location": "[parameters('regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', concat('jumpbox-', parameters('deploymentId')))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.10",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Bypass -Command \"','Set-DnsClientGlobalSetting -SuffixSearchList @(''', variables('privateDnsZoneName'), '''); ','Clear-DnsClientCache\"')]"
+        },
+        "protectedSettings": {}
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "Purpose": "JumpBox-DNS-Config"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('winServerVMPrefix'), copyIndex(1), '-', parameters('deploymentId'), '-nic')]",
+      "location": "[parameters('regionB')]",
+      "copy": {
+        "name": "nicWinServerCopy",
+        "count": 2
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionB'))]",
+        "[resourceId('Microsoft.Network/loadBalancers', variables('lbRegionB'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetRegionB'), variables('subnetRegionB'))]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('lbRegionB'), 'BackendPool')]"
+                }
+              ]
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]",
+        "OS": "WindowsServer"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(variables('winServerVMPrefix'), '1', '-', parameters('deploymentId'))]",
+      "location": "[parameters('regionB')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('winServerVMPrefix'), '1', '-', parameters('deploymentId'), '-nic'))]"
+      ],
+      "identity": {
+        "type": "systemAssigned"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "securityProfile": {
+            "encryptionAtHost": true
+        },
+        "osProfile": {
+          "computerName": "[concat(variables('winServerVMPrefix'), '1', '-', parameters('deploymentId'))]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "enableAutomaticUpdates": false,
+            "patchSettings": {
+              "patchMode": "Manual"
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+                "publisher": "MicrosoftWindowsServer",
+                "offer": "WindowsServer",
+                "sku": "2025-datacenter-g2",
+                "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('winServerVMPrefix'), '1', '-', parameters('deploymentId'), '-nic'))]"
+            }
+          ]
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]",
+        "OS": "WindowsServer2025"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(variables('winServerVMPrefix'), '2', '-', parameters('deploymentId'))]",
+      "location": "[parameters('regionB')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('winServerVMPrefix'), '2', '-', parameters('deploymentId'), '-nic'))]"
+      ],
+      "identity": {
+        "type": "systemAssigned"
+      },
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(variables('winServerVMPrefix'), '2', '-', parameters('deploymentId'))]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "enableAutomaticUpdates": false,
+            "patchSettings": {
+              "patchMode": "Manual"
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "id": "[variables('winserverid')]"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('winServerVMPrefix'), '2', '-', parameters('deploymentId'), '-nic'))]"
+            }
+          ]
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]",
+        "OS": "WindowsServer2025"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2024-03-01",
+      "name": "[concat(variables('winServerVMPrefix'), copyIndex(1), '-', parameters('deploymentId'), '/AADLoginForWindows')]",
+      "location": "[parameters('regionB')]",
+      "copy": {
+        "name": "aadLoginWinServerCopy",
+        "count": 2
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('winServerVMPrefix'), copyIndex(1), '-', parameters('deploymentId')))]",
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat(variables('winServerVMPrefix'), copyIndex(1), '-', parameters('deploymentId')), 'InstallIIS')]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.ActiveDirectory",
+        "type": "AADLoginForWindows",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(variables('winServerVMPrefix'), copyIndex(1), '-', parameters('deploymentId'), '/InstallIIS')]",
+      "location": "[parameters('regionB')]",
+      "copy": {
+        "name": "iisWinServerCopy",
+        "count": 2
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('winServerVMPrefix'), copyIndex(1), '-', parameters('deploymentId')))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.10",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "https://experienceazure.blob.core.windows.net/templates/Axonius/multi-region/new/configure-winserver.ps1"
+          ]
+        },
+        "protectedSettings": {
+            "commandToExecute": "[concat('powershell.exe -ExecutionPolicy Unrestricted -File Axonius/multi-region/new/configure-winserver.ps1', ' -DeploymentID ', parameters('deploymentId'))]"
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]",
+        "Purpose": "IIS-SecurityConfig"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/runCommands",
+      "apiVersion": "2023-03-01",
+      "name": "[concat(variables('winServerVMPrefix'), copyIndex(1), '-', parameters('deploymentId'), '/RestartVM')]",
+      "location": "[parameters('regionB')]",
+      "copy": {
+        "name": "restartWinServerCopy",
+        "count": 2
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', concat(variables('winServerVMPrefix'), copyIndex(1), '-', parameters('deploymentId')), 'AADLoginForWindows')]"
+      ],
+      "properties": {
+        "source": {
+          "script": "Restart-Computer -Force"
+        },
+        "timeoutInSeconds": 120,
+        "asyncExecution": true,
+        "treatFailureAsDeploymentFailure": false
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]",
+        "Purpose": "PostProvisioningRestart"
+      }
+    },
+    {
+      "type": "Microsoft.Network/firewallPolicies",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('firewallPolicyRegionA')]",
+      "location": "[parameters('regionA')]",
+      "properties": {
+        "sku": {
+          "tier": "Standard"
+        },
+        "threatIntelMode": "Alert"
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/firewallPolicies/ruleCollectionGroups",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('firewallPolicyRegionA'), '/DefaultDnatRuleCollectionGroup')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/firewallPolicies', variables('firewallPolicyRegionA'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionA'))]",
+        "[resourceId('Microsoft.Network/loadBalancers', variables('lbRegionA'))]"
+      ],
+      "properties": {
+        "priority": 100,
+        "ruleCollections": [
+          {
+            "ruleCollectionType": "FirewallPolicyNatRuleCollection",
+            "name": "DnatRules",
+            "priority": 100,
+            "action": {
+              "type": "Dnat"
+            },
+            "rules": [
+              {
+                "ruleType": "NatRule",
+                "name": "AllowHTTP",
+                "translatedAddress": "[reference(resourceId('Microsoft.Network/loadBalancers', variables('lbRegionA'))).frontendIPConfigurations[0].properties.privateIPAddress]",
+                "translatedPort": "80",
+                "ipProtocols": [
+                  "TCP"
+                ],
+                "sourceAddresses": [
+                  "[parameters('allowedSourceIP')]"
+                ],
+                "destinationAddresses": [
+                  "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionA'))).ipAddress]"
+                ],
+                "destinationPorts": [
+                  "80"
+                ]
+              }
+            ]
+          },
+          {
+            "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+            "name": "NetworkRules",
+            "priority": 200,
+            "action": {
+              "type": "Allow"
+            },
+            "rules": [
+              {
+                "ruleType": "NetworkRule",
+                "name": "AllowOutboundInternet",
+                "ipProtocols": [
+                  "TCP",
+                  "UDP",
+                  "ICMP"
+                ],
+                "sourceAddresses": [
+                  "10.1.0.0/16",
+                  "10.2.0.0/16"
+                ],
+                "destinationAddresses": [
+                  "*"
+                ],
+                "destinationPorts": [
+                  "*"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/azureFirewalls",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('firewallRegionA')]",
+      "location": "[parameters('regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionA'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]",
+        "[resourceId('Microsoft.Network/firewallPolicies', variables('firewallPolicyRegionA'))]",
+        "[resourceId('Microsoft.Network/firewallPolicies/ruleCollectionGroups', variables('firewallPolicyRegionA'), 'DefaultDnatRuleCollectionGroup')]"
+      ],
+      "properties": {
+        "sku": {
+          "name": "AZFW_VNet",
+          "tier": "Standard"
+        },
+        "ipConfigurations": [
+          {
+            "name": "firewallConfig",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionA'))]"
+              },
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetRegionA'), variables('firewallSubnetName'))]"
+              }
+            }
+          }
+        ],
+        "firewallPolicy": {
+          "id": "[resourceId('Microsoft.Network/firewallPolicies', variables('firewallPolicyRegionA'))]"
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/firewallPolicies",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('firewallPolicyRegionB')]",
+      "location": "[parameters('regionB')]",
+      "properties": {
+        "sku": {
+          "tier": "Standard"
+        },
+        "threatIntelMode": "Alert"
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/firewallPolicies/ruleCollectionGroups",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('firewallPolicyRegionB'), '/DefaultDnatRuleCollectionGroup')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/firewallPolicies', variables('firewallPolicyRegionB'))]"
+      ],
+      "properties": {
+        "priority": 100,
+        "ruleCollections": [
+          {
+            "ruleCollectionType": "FirewallPolicyNatRuleCollection",
+            "name": "DnatRules",
+            "priority": 100,
+            "action": {
+              "type": "Dnat"
+            },
+            "rules": [
+              {
+                "ruleType": "NatRule",
+                "name": "AllowHTTP",
+                "translatedAddress": "[reference(resourceId('Microsoft.Network/loadBalancers', variables('lbRegionB'))).frontendIPConfigurations[0].properties.privateIPAddress]",
+                "translatedPort": "80",
+                "ipProtocols": [
+                  "TCP"
+                ],
+                "sourceAddresses": [
+                  "[parameters('allowedSourceIP')]"
+                ],
+                "destinationAddresses": [
+                  "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionB'))).ipAddress]"
+                ],
+                "destinationPorts": [
+                  "80"
+                ]
+              }
+            ]
+          },
+          {
+            "ruleCollectionType": "FirewallPolicyFilterRuleCollection",
+            "name": "NetworkRules",
+            "priority": 200,
+            "action": {
+              "type": "Allow"
+            },
+            "rules": [
+              {
+                "ruleType": "NetworkRule",
+                "name": "AllowOutboundInternet",
+                "ipProtocols": [
+                  "TCP",
+                  "UDP",
+                  "ICMP"
+                ],
+                "sourceAddresses": [
+                  "10.2.0.0/16"
+                ],
+                "destinationAddresses": [
+                  "*"
+                ],
+                "destinationPorts": [
+                  "*"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/azureFirewalls",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('firewallRegionB')]",
+      "location": "[parameters('regionB')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionB'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionB'))]",
+        "[resourceId('Microsoft.Network/firewallPolicies', variables('firewallPolicyRegionB'))]",
+        "[resourceId('Microsoft.Network/firewallPolicies/ruleCollectionGroups', variables('firewallPolicyRegionB'), 'DefaultDnatRuleCollectionGroup')]"
+      ],
+      "properties": {
+        "sku": {
+          "name": "AZFW_VNet",
+          "tier": "Standard"
+        },
+        "ipConfigurations": [
+          {
+            "name": "firewallConfig",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionB'))]"
+              },
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetRegionB'), variables('firewallSubnetName'))]"
+              }
+            }
+          }
+        ],
+        "firewallPolicy": {
+          "id": "[resourceId('Microsoft.Network/firewallPolicies', variables('firewallPolicyRegionB'))]"
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/routeTables",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('regionAPrefix'), '-rt')]",
+      "location": "[parameters('regionA')]",
+      "properties": {
+        "routes": [
+          {
+            "name": "RouteToFirewall",
+            "properties": {
+              "addressPrefix": "0.0.0.0/0",
+              "nextHopType": "VirtualAppliance",
+              "nextHopIpAddress": "[reference(resourceId('Microsoft.Network/azureFirewalls', variables('firewallRegionA'))).ipConfigurations[0].properties.privateIPAddress]"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/azureFirewalls', variables('firewallRegionA'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/routeTables",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('regionBPrefix'), '-rt')]",
+      "location": "[parameters('regionB')]",
+      "properties": {
+        "routes": [
+          {
+            "name": "RouteToFirewall",
+            "properties": {
+              "addressPrefix": "0.0.0.0/0",
+              "nextHopType": "VirtualAppliance",
+              "nextHopIpAddress": "[reference(resourceId('Microsoft.Network/azureFirewalls', variables('firewallRegionB'))).ipConfigurations[0].properties.privateIPAddress]"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionB')]"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/azureFirewalls', variables('firewallRegionB'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('vnetRegionA'), '/', variables('subnetRegionA'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]",
+        "[resourceId('Microsoft.Network/routeTables', concat(variables('regionAPrefix'), '-rt'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgRegionA'))]"
+      ],
+      "properties": {
+        "addressPrefix": "[variables('subnetAddressRegionA')]",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgRegionA'))]"
+        },
+        "routeTable": {
+          "id": "[resourceId('Microsoft.Network/routeTables', concat(variables('regionAPrefix'), '-rt'))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/subnets",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('vnetRegionB'), '/', variables('subnetRegionB'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionB'))]",
+        "[resourceId('Microsoft.Network/routeTables', concat(variables('regionBPrefix'), '-rt'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgRegionB'))]"
+      ],
+      "properties": {
+        "addressPrefix": "[variables('subnetAddressRegionB')]",
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgRegionB'))]"
+        },
+        "routeTable": {
+          "id": "[resourceId('Microsoft.Network/routeTables', concat(variables('regionBPrefix'), '-rt'))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/trafficManagerProfiles",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('trafficManagerName')]",
+      "location": "global",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionA'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionB'))]"
+      ],
+      "properties": {
+        "profileStatus": "Enabled",
+        "trafficRoutingMethod": "Performance",
+        "dnsConfig": {
+          "relativeName": "[parameters('trafficManagerDnsName')]",
+          "ttl": 30
+        },
+        "monitorConfig": {
+          "protocol": "HTTP",
+          "port": 80,
+          "path": "/",
+          "intervalInSeconds": 30,
+          "toleratedNumberOfFailures": 3,
+          "timeoutInSeconds": 10
+        },
+        "endpoints": [
+          {
+            "name": "Firewall-RegionA-Endpoint",
+            "type": "Microsoft.Network/trafficManagerProfiles/externalEndpoints",
+            "properties": {
+              "target": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionA'))).ipAddress]",
+              "endpointStatus": "Enabled",
+              "endpointLocation": "[parameters('regionA')]"
+            }
+          },
+          {
+            "name": "Firewall-RegionB-Endpoint",
+            "type": "Microsoft.Network/trafficManagerProfiles/externalEndpoints",
+            "properties": {
+              "target": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionB'))).ipAddress]",
+              "endpointStatus": "Enabled",
+              "endpointLocation": "[parameters('regionB')]"
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('vnetRegionA'), '/peering-to-regionB')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionB'))]"
+      ],
+      "properties": {
+        "allowVirtualNetworkAccess": true,
+        "allowForwardedTraffic": true,
+        "allowGatewayTransit": false,
+        "useRemoteGateways": false,
+        "remoteVirtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionB'))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks/virtualNetworkPeerings",
+      "apiVersion": "2023-04-01",
+      "name": "[concat(variables('vnetRegionB'), '/peering-to-regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionB'))]"
+      ],
+      "properties": {
+        "allowVirtualNetworkAccess": true,
+        "allowForwardedTraffic": true,
+        "allowGatewayTransit": false,
+        "useRemoteGateways": false,
+        "remoteVirtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2024-06-01",
+      "name": "[variables('privateDnsZoneName')]",
+      "location": "global",
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2024-06-01",
+      "name": "[concat(variables('privateDnsZoneName'), '/link-regionA')]",
+      "location": "global",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]"
+      ],
+      "properties": {
+        "virtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]"
+        },
+        "registrationEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2024-06-01",
+      "name": "[concat(variables('privateDnsZoneName'), '/link-regionB')]",
+      "location": "global",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]",
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionB'))]"
+      ],
+      "properties": {
+        "virtualNetwork": {
+          "id": "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionB'))]"
+        },
+        "registrationEnabled": false
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/A",
+      "apiVersion": "2024-06-01",
+      "name": "[concat(variables('privateDnsZoneName'), '/w11vm1-', parameters('deploymentId'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+      ],
+      "properties": {
+        "ttl": 300,
+        "aRecords": [
+          {
+            "ipv4Address": "[reference(resourceId('Microsoft.Network/networkInterfaces',concat('w11vm1-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/A",
+      "apiVersion": "2024-06-01",
+      "name": "[concat(variables('privateDnsZoneName'), '/w11vm2-', parameters('deploymentId'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+      ],
+      "properties": {
+        "ttl": 300,
+        "aRecords": [
+          {
+            "ipv4Address": "[reference(resourceId('Microsoft.Network/networkInterfaces',concat('w11vm2-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/A",
+      "apiVersion": "2024-06-01",
+      "name": "[concat(variables('privateDnsZoneName'), '/srv1-', parameters('deploymentId'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+      ],
+      "properties": {
+        "ttl": 300,
+        "aRecords": [
+          {
+            "ipv4Address": "[reference(resourceId('Microsoft.Network/networkInterfaces',concat('srv1-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/A",
+      "apiVersion": "2024-06-01",
+      "name": "[concat(variables('privateDnsZoneName'), '/srv2-', parameters('deploymentId'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/privateDnsZones', variables('privateDnsZoneName'))]"
+      ],
+      "properties": {
+        "ttl": 300,
+        "aRecords": [
+          {
+            "ipv4Address": "[reference(resourceId('Microsoft.Network/networkInterfaces',concat('srv2-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(resourceGroup().id, parameters('entraAdminObjectId'), 'vmAdminLoginRole')]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions','1c0163c0-47e6-4577-8991-ea5c82e286e4')]",
+        "principalId": "[parameters('entraAdminObjectId')]",
+        "principalType": "User",
+        "description": "Assign Virtual Machine Administrator Login role at RG scope"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-04-01",
+      "name": "[variables('axoniusGatewayNicName')]",
+      "location": "[parameters('regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetRegionA'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetRegionA'), 'JumpBoxSubnet')]"
+              }
+            }
+          }
+        ]
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "Purpose": "AxoniusGateway"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2023-03-01",
+      "name": "[variables('axoniusGatewayVMName')]",
+      "location": "[parameters('regionA')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('axoniusGatewayNicName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[variables('axoniusGatewayVMName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "customData": "[base64(concat('#!/bin/bash\n','set -e\n','curl -o /tmp/axonius_gateway_setup.sh \"',parameters('gatewayScriptUrl'),'\"\n','sed -i ''s/\\r$//'' /tmp/axonius_gateway_setup.sh\n','chmod +x /tmp/axonius_gateway_setup.sh\n','cd /tmp\n','./axonius_gateway_setup.sh\n'))]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "canonical",
+            "offer": "ubuntu-24_04-lts",
+            "sku": "server",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(variables('axoniusGatewayVMName'), '-osdisk')]",
+            "caching": "ReadWrite",
+            "createOption": "FromImage",
+            "diskSizeGB": 30,
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('axoniusGatewayNicName'))]"
+            }
+          ]
+        }
+      },
+      "tags": {
+        "Deployment": "[parameters('deploymentName')]",
+        "DeploymentID": "[parameters('deploymentId')]",
+        "Region": "[parameters('regionA')]",
+        "OS": "Ubuntu24.04",
+        "Purpose": "AxoniusGateway"
+      }
+    }
+
+  ],
+  "outputs": {
+    "trafficManagerFQDN": {
+      "type": "string",
+      "value": "[concat(parameters('trafficManagerDnsName'), '.trafficmanager.net')]"
+    },
+    "firewallPublicIPRegionA": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionA'))).ipAddress]"
+    },
+    "firewallPublicIPRegionB": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('firewallPublicIPRegionB'))).ipAddress]"
+    },
+    "jumpBoxPublicIP": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', concat(variables('regionAPrefix'), '-jumpbox-pip'))).ipAddress]"
+    },
+    "jumpBoxFQDN": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', concat(variables('regionAPrefix'), '-jumpbox-pip'))).dnsSettings.fqdn]"
+    },
+    "jumpBoxUsername": {
+      "type": "string",
+      "value": "[parameters('adminUsername')]"
+    },
+    "jumpBoxPassword": {
+      "type": "string",
+      "value": "[parameters('adminPassword')]"
+    },
+    "jumpBoxPrivateIP": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/networkInterfaces', concat(variables('regionAPrefix'), '-jumpbox-nic'))).ipConfigurations[0].properties.privateIPAddress]"
+    },
+    "win11VM1PrivateIP": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/networkInterfaces', concat(variables('win11VMPrefix'), '1-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress]"
+    },
+    "win11VM2PrivateIP": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/networkInterfaces', concat(variables('win11VMPrefix'), '2-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress]"
+    },
+    "winServerVM1PrivateIP": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/networkInterfaces', concat(variables('winServerVMPrefix'), '1-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress]"
+    },
+    "winServerVM2PrivateIP": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/networkInterfaces', concat(variables('winServerVMPrefix'), '2-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress]"
+    },
+    "connectionInstructions": {
+      "type": "string",
+      "value": "[concat('To connect to VMs: 1) RDP to Jump Box using FQDN or Public IP with credentials (Username: ', parameters('adminUsername'), '). 2) From Jump Box, open Remote Desktop Connection and connect to private VMs using their private IPs: Win11-VM1: ', reference(resourceId('Microsoft.Network/networkInterfaces', concat(variables('win11VMPrefix'), '1-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress, ', Win11-VM2: ', reference(resourceId('Microsoft.Network/networkInterfaces', concat(variables('win11VMPrefix'), '2-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress, ', WinServer-VM1: ', reference(resourceId('Microsoft.Network/networkInterfaces', concat(variables('winServerVMPrefix'), '1-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress, ', WinServer-VM2: ', reference(resourceId('Microsoft.Network/networkInterfaces', concat(variables('winServerVMPrefix'), '2-', parameters('deploymentId'), '-nic'))).ipConfigurations[0].properties.privateIPAddress, '. Use same admin credentials.')]"
+    },
+    "axoniusGatewayVMPrivateIP": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/networkInterfaces', variables('axoniusGatewayNicName'))).ipConfigurations[0].properties.privateIPAddress]"
+    }
+  }
+}
