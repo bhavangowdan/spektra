@@ -163,9 +163,8 @@
             "defaultValue": "[concat(resourceGroup().name, '-vnet')]"
         },
         "virtualNetworkAddressPrefixes": {
-          "type": "string",
-           "defaultValue": "172.20.0.0/16"
-               },
+        "type": "array"
+          },
         "subnet1Name": {
             "type": "string",
             "metadata": {
