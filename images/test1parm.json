@@ -29,11 +29,6 @@
         "virtualNetworkName": {
             "value": "vnet01-6"
         },
-        "virtualNetworkAddressPrefixes": {
-    "value": [
-        "172.20.0.0/16"
-    ]
-},
         "subnet1Name": {
             "value": "Frontend"
         },
