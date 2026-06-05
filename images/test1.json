@@ -164,7 +164,7 @@
         },
         "virtualNetworkAddressPrefixes": {
        "type": "array",
-       "defaultValue": ["10.0.0.0/16"],
+       "defaultValue": ["172.20.0.0/16"],
         "metadata": {
         "description": "Virtual network address prefixes as an array of CIDR blocks"
          }
