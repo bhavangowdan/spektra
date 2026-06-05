@@ -163,8 +163,12 @@
             "defaultValue": "[concat(resourceGroup().name, '-vnet')]"
         },
         "virtualNetworkAddressPrefixes": {
-        "type": "array"
-          },
+       "type": "array",
+       "defaultValue": ["10.0.0.0/16"],
+        "metadata": {
+        "description": "Virtual network address prefixes as an array of CIDR blocks"
+         }
+        },
         "subnet1Name": {
             "type": "string",
             "metadata": {
