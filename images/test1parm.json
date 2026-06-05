@@ -77,9 +77,6 @@
         "sourceImageVhdUri": {
             "value": "noCustomUri"
         },
-        "availabilityZones": {
-            "value": []
-        },
         "availabilityZonesChoice": {
             "value": "No"
         },
