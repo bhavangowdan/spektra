@@ -11,9 +11,10 @@ param(
 # Event Date : 12th June 2026
 # Client     : SBID.cz
 # Purpose    : Pre-install all required tools for AI Hackathon
-# Version    : 1.4
-# Fixes      : Windows 11 popups disabled + VS Code extensions
-#              now install for Labuser (not SYSTEM)
+# Version    : 1.5
+# Changes    : Removed Contoso Invoicing & Excel shortcut
+#              Fixed Claude VS Code extension IDs
+#              Updated VM SKU to Standard_D4s_v5
 #---------------------------------------------------------------
 
 Start-Transcript -Path C:\WindowsAzure\Logs\CloudLabsCustomScriptExtension.txt -Append
@@ -114,14 +115,9 @@ try {
     Write-Output "Machine-wide popup settings applied."
 
     # --- PER-USER Settings (Load Default User + Labuser Hive) ---
-    # CustomScriptExtension runs as SYSTEM, so we must load user
-    # hives to apply HKCU settings for actual users.
-
-    # Load Default User hive
     $defaultHivePath = "C:\Users\Default\NTUSER.DAT"
     reg load "HKU\DefaultUser" $defaultHivePath 2>$null
 
-    # Load Labuser hive if profile exists
     $labUserHivePath = "C:\Users\$vmAdminUsername\NTUSER.DAT"
     $labUserHiveLoaded = $false
     if (Test-Path $labUserHivePath) {
@@ -129,18 +125,15 @@ try {
         $labUserHiveLoaded = $true
     }
 
-    # Define all hives to configure
     $hives = @("HKU\DefaultUser")
     if ($labUserHiveLoaded) { $hives += "HKU\LabUser" }
 
     foreach ($hive in $hives) {
         Write-Output "Applying popup settings to $hive ..."
 
-        # Disable "Let's finish setting up your device"
         $engagementKey = "$hive\SOFTWARE\Microsoft\Windows\CurrentVersion\UserProfileEngagement"
         reg add $engagementKey /v "ScoobeSystemSettingEnabled" /t REG_DWORD /d 0 /f 2>$null
 
-        # Content Delivery Manager settings
         $cdmKey = "$hive\SOFTWARE\Microsoft\Windows\CurrentVersion\ContentDeliveryManager"
         reg add $cdmKey /v "SubscribedContent-310093Enabled" /t REG_DWORD /d 0 /f 2>$null
         reg add $cdmKey /v "SubscribedContent-338389Enabled" /t REG_DWORD /d 0 /f 2>$null
@@ -156,14 +149,12 @@ try {
         reg add $cdmKey /v "PreInstalledAppsEnabled" /t REG_DWORD /d 0 /f 2>$null
         reg add $cdmKey /v "OemPreInstalledAppsEnabled" /t REG_DWORD /d 0 /f 2>$null
 
-        # Disable Bing search in Start
         $explorerKey = "$hive\SOFTWARE\Policies\Microsoft\Windows\Explorer"
         reg add $explorerKey /v "DisableSearchBoxSuggestions" /t REG_DWORD /d 1 /f 2>$null
 
         Write-Output "Popup settings applied to $hive."
     }
 
-    # Unload hives
     reg unload "HKU\DefaultUser" 2>$null
     if ($labUserHiveLoaded) { reg unload "HKU\LabUser" 2>$null }
 
@@ -222,31 +213,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 5. Create Excel Shortcut
-#---------------------------------------------------------------
-try {
-    Write-Output "=== Creating Excel Shortcut ==="
-    $excelPath = "C:\Program Files\Microsoft Office\root\Office16\EXCEL.EXE"
-    if (-Not (Test-Path $excelPath)) {
-        $excelPath = "C:\Program Files (x86)\Microsoft Office\root\Office16\EXCEL.EXE"
-    }
-    if (Test-Path $excelPath) {
-        $WshShell = New-Object -ComObject WScript.Shell
-        $Shortcut = $WshShell.CreateShortcut("$PublicDesktop\Microsoft Excel.lnk")
-        $Shortcut.TargetPath = $excelPath
-        $Shortcut.Save()
-        Write-Output "Excel shortcut created."
-    }
-    else {
-        Write-Output "Excel not found - skipping shortcut."
-    }
-}
-catch {
-    Write-Output "ERROR creating Excel shortcut: $_"
-}
-
-#---------------------------------------------------------------
-# 6. Install .NET 8 Desktop Runtime (x64 + x86)
+# 5. Install .NET 8 Desktop Runtime (x64 + x86)
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing .NET 8 Desktop Runtime ==="
@@ -269,7 +236,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 7. Install Power Automate Desktop
+# 6. Install Power Automate Desktop
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing Power Automate Desktop ==="
@@ -286,28 +253,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 8. Install Contoso Invoicing App
-#---------------------------------------------------------------
-try {
-    Write-Output "=== Installing Contoso Invoicing App ==="
-    $contosoInstaller = "$labPath\ContosoInvoicingSetup.msi"
-
-    $ProgressPreference = 'SilentlyContinue'
-    Start-BitsTransfer `
-        -Source "https://aka.ms/AuIADContosoInvoicing" `
-        -Destination $contosoInstaller
-
-    Start-Process msiexec.exe `
-        -ArgumentList "/i `"$contosoInstaller`" /qn /norestart ALLUSERS=1" `
-        -Wait
-    Write-Output "Contoso Invoicing installation completed."
-}
-catch {
-    Write-Output "ERROR installing Contoso Invoicing: $_"
-}
-
-#---------------------------------------------------------------
-# 9. Install Visual Studio Code
+# 7. Install Visual Studio Code
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing Visual Studio Code ==="
@@ -334,7 +280,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 10. Install Node.js LTS
+# 8. Install Node.js LTS
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing Node.js LTS ==="
@@ -355,8 +301,10 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 11. Install VS Code Extensions for Labuser [FIXED v1.4]
-#     Extensions install into Labuser profile, not SYSTEM.
+# 9. Install VS Code Extensions for Labuser [FIXED v1.5]
+#    - Fixed Claude extension IDs (publisher: anthropics)
+#    - Extensions install into Labuser profile, not SYSTEM
+#    - Added verification and retry logic
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing VS Code Extensions for $vmAdminUsername ==="
@@ -369,18 +317,51 @@ try {
     Write-Output "Created extensions directory: $extensionsDir"
 
     # Extension 1: Power Platform Tools
-    Write-Output "Installing Power Platform Tools Extension..."
-    Start-Process -FilePath $codePath `
+    Write-Output "--- Installing Extension 1: Power Platform Tools ---"
+    $ext1Result = Start-Process -FilePath $codePath `
         -ArgumentList "--install-extension microsoft-IsvExpTools.powerplatform-vscode-extension --force --extensions-dir `"$extensionsDir`"" `
-        -Wait -NoNewWindow
-    Write-Output "Power Platform Tools Extension installed."
+        -Wait -NoNewWindow -PassThru
+    if ($ext1Result.ExitCode -eq 0) {
+        Write-Output "SUCCESS: Power Platform Tools Extension installed (ExitCode: $($ext1Result.ExitCode))"
+    } else {
+        Write-Output "WARNING: Power Platform Tools install returned ExitCode: $($ext1Result.ExitCode)"
+    }
+    Start-Sleep -Seconds 10
 
-    # Extension 2: Claude Code
-    Write-Output "Installing Claude Code Extension..."
-    Start-Process -FilePath $codePath `
-        -ArgumentList "--install-extension anthropic.claude-code --force --extensions-dir `"$extensionsDir`"" `
-        -Wait -NoNewWindow
-    Write-Output "Claude Code Extension installed."
+    # Extension 2: Claude for VS Code (Chat/Sidebar)
+    # Publisher: anthropics (with 's'), Extension ID: anthropics.claude
+    Write-Output "--- Installing Extension 2: Claude for VS Code (anthropics.claude) ---"
+    $ext2Result = Start-Process -FilePath $codePath `
+        -ArgumentList "--install-extension anthropics.claude --force --extensions-dir `"$extensionsDir`"" `
+        -Wait -NoNewWindow -PassThru
+    if ($ext2Result.ExitCode -eq 0) {
+        Write-Output "SUCCESS: Claude for VS Code Extension installed (ExitCode: $($ext2Result.ExitCode))"
+    } else {
+        Write-Output "WARNING: Claude for VS Code install returned ExitCode: $($ext2Result.ExitCode)"
+        Write-Output "Trying alternative ID: anthropic.claude-code ..."
+        $ext2Retry = Start-Process -FilePath $codePath `
+            -ArgumentList "--install-extension anthropic.claude-code --force --extensions-dir `"$extensionsDir`"" `
+            -Wait -NoNewWindow -PassThru
+        if ($ext2Retry.ExitCode -eq 0) {
+            Write-Output "SUCCESS: Claude Code Extension installed via alternative ID (ExitCode: $($ext2Retry.ExitCode))"
+        } else {
+            Write-Output "WARNING: Claude alternative ID also returned ExitCode: $($ext2Retry.ExitCode)"
+        }
+    }
+    Start-Sleep -Seconds 10
+
+    # Extension 3: Claude Code (Terminal-based)
+    # Publisher: anthropics, Extension ID: anthropics.claude-code
+    Write-Output "--- Installing Extension 3: Claude Code Terminal (anthropics.claude-code) ---"
+    $ext3Result = Start-Process -FilePath $codePath `
+        -ArgumentList "--install-extension anthropics.claude-code --force --extensions-dir `"$extensionsDir`"" `
+        -Wait -NoNewWindow -PassThru
+    if ($ext3Result.ExitCode -eq 0) {
+        Write-Output "SUCCESS: Claude Code Terminal Extension installed (ExitCode: $($ext3Result.ExitCode))"
+    } else {
+        Write-Output "INFO: Claude Code Terminal extension not available in marketplace (ExitCode: $($ext3Result.ExitCode)) - Skipping."
+    }
+    Start-Sleep -Seconds 10
 
     # Set proper ownership/permissions for Labuser
     $acl = Get-Acl "C:\Users\$vmAdminUsername\.vscode"
@@ -391,11 +372,21 @@ try {
     Set-Acl "C:\Users\$vmAdminUsername\.vscode" $acl
     Write-Output "Permissions set on .vscode folder for $vmAdminUsername."
 
-    # Verify extensions installed
+    # Verify all installed extensions
+    Write-Output "=== Verifying Installed Extensions ==="
     $installedExtensions = Get-ChildItem -Path $extensionsDir -Directory -ErrorAction SilentlyContinue
-    Write-Output "Extensions installed in $extensionsDir :"
-    foreach ($ext in $installedExtensions) {
-        Write-Output "  - $($ext.Name)"
+    if ($installedExtensions.Count -gt 0) {
+        Write-Output "Extensions found in $extensionsDir ($($installedExtensions.Count) total):"
+        foreach ($ext in $installedExtensions) {
+            Write-Output "  [OK] $($ext.Name)"
+        }
+    } else {
+        Write-Output "WARNING: No extensions found in $extensionsDir"
+        Write-Output "Attempting system-wide fallback install..."
+        # Fallback: install system-wide (will be available to all users)
+        Start-Process -FilePath $codePath -ArgumentList "--install-extension microsoft-IsvExpTools.powerplatform-vscode-extension --force" -Wait -NoNewWindow
+        Start-Process -FilePath $codePath -ArgumentList "--install-extension anthropics.claude --force" -Wait -NoNewWindow
+        Write-Output "System-wide fallback install attempted."
     }
 }
 catch {
@@ -403,7 +394,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 12. Install Claude Code via npm
+# 10. Install Claude Code via npm
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing Claude Code via npm ==="
@@ -418,7 +409,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 13. Install .NET SDK 8.0 (required for PAC CLI)
+# 11. Install .NET SDK 8.0 (required for PAC CLI)
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing .NET SDK 8.0 ==="
@@ -438,7 +429,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 14. Install PAC CLI (Power Platform CLI)
+# 12. Install PAC CLI (Power Platform CLI)
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing PAC CLI (Power Platform CLI) ==="
@@ -453,7 +444,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 15. Install Git (required for cloning repos)
+# 13. Install Git (required for cloning repos)
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing Git ==="
@@ -468,7 +459,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 16. Clone Power Platform Skills
+# 14. Clone Power Platform Skills
 #---------------------------------------------------------------
 try {
     Write-Output "=== Cloning Power Platform Skills ==="
@@ -482,7 +473,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 17. Clone Dataverse Skills (for Claude Code)
+# 15. Clone Dataverse Skills (for Claude Code)
 #---------------------------------------------------------------
 try {
     Write-Output "=== Cloning Dataverse Skills ==="
@@ -495,7 +486,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 18. Clone Power BI Agentic Development (Claude Code plugin)
+# 16. Clone Power BI Agentic Development (Claude Code plugin)
 #---------------------------------------------------------------
 try {
     Write-Output "=== Cloning Power BI Agentic Development ==="
@@ -508,7 +499,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 19. Clone Copilot Studio Skills
+# 17. Clone Copilot Studio Skills
 #---------------------------------------------------------------
 try {
     Write-Output "=== Cloning Copilot Studio Skills ==="
@@ -521,7 +512,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 20. Install Power BI Desktop
+# 18. Install Power BI Desktop
 #---------------------------------------------------------------
 try {
     Write-Output "=== Installing Power BI Desktop ==="
@@ -535,7 +526,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 21. Create AI Hackathon Tools Shortcut
+# 19. Create AI Hackathon Tools Shortcut
 #---------------------------------------------------------------
 try {
     Write-Output "=== Creating AI Hackathon Tools Shortcut ==="
@@ -551,7 +542,7 @@ catch {
 }
 
 #---------------------------------------------------------------
-# 22. Enable CloudLabs Embedded Shadow
+# 20. Enable CloudLabs Embedded Shadow
 #---------------------------------------------------------------
 try {
     Write-Output "=== Enabling CloudLabs Embedded Shadow ==="
